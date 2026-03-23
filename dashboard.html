@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BWA Investment Committee Dashboard</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--navy:#1a2744;--teal:#0d9488;--bg:#f3f4f6;--card:#ffffff;--text:#1e293b;--muted:#64748b;--border:#e2e8f0}
+.dark{--navy:#0f172a;--teal:#14b8a6;--bg:#0f172a;--card:#1e293b;--text:#e2e8f0;--muted:#94a3b8;--border:#334155}
+*{font-family:'Inter',system-ui,sans-serif}
+body{background:var(--bg);color:var(--text);transition:background .3s,color .3s}
+.card{background:var(--card);border:1px solid var(--border);border-radius:0.75rem;padding:1.25rem;transition:all .3s}
+.kpi{text-align:center;padding:1rem}
+.kpi .val{font-size:1.5rem;font-weight:700}
+.kpi .lbl{font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em}
+.nav-btn{display:flex;align-items:center;gap:0.5rem;padding:0.625rem 1rem;border-radius:0.5rem;cursor:pointer;transition:all .15s;color:var(--muted);font-size:0.875rem;font-weight:500;width:100%;border:none;background:transparent;text-align:left}
+.nav-btn:hover,.nav-btn.active{background:var(--teal);color:#fff}
+table{width:100%;border-collapse:collapse;font-size:0.8rem}
+th{cursor:pointer;padding:0.5rem;text-align:left;border-bottom:2px solid var(--border);color:var(--muted);font-weight:600;white-space:nowrap;user-select:none}
+td{padding:0.5rem;border-bottom:1px solid var(--border)}
+th:hover{color:var(--teal)}
+.pos{color:#16a34a}.neg{color:#dc2626}
+.rag-r{background:#dc2626;color:#fff;padding:2px 8px;border-radius:9999px;font-size:0.7rem;font-weight:600}
+.rag-a{background:#f59e0b;color:#fff;padding:2px 8px;border-radius:9999px;font-size:0.7rem;font-weight:600}
+.rag-g{background:#16a34a;color:#fff;padding:2px 8px;border-radius:9999px;font-size:0.7rem;font-weight:600}
+select,input[type=text],input[type=password],textarea{background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:0.375rem;padding:0.5rem;font-size:0.875rem}
+.btn{padding:0.5rem 1rem;border-radius:0.375rem;font-weight:600;font-size:0.8rem;cursor:pointer;border:none;transition:all .15s}
+.btn-primary{background:var(--teal);color:#fff}.btn-primary:hover{opacity:0.9}
+.btn-danger{background:#dc2626;color:#fff}.btn-danger:hover{opacity:0.9}
+.btn-secondary{background:var(--border);color:var(--text)}.btn-secondary:hover{opacity:0.8}
+@media print{.no-print{display:none!important}}
+@media(max-width:768px){.sidebar{display:none!important}.main{margin-left:0!important}}
+.heatmap-cell{width:3.5rem;height:2.5rem;display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:600;border-radius:0.25rem}
+</style>
+</head>
+<body>
+<!-- SIDEBAR -->
+<div class="sidebar no-print" style="position:fixed;left:0;top:0;bottom:0;width:220px;background:var(--navy);padding:1rem;overflow-y:auto;z-index:50">
+<div style="color:#fff;font-weight:700;font-size:1.1rem;margin-bottom:0.25rem">BWA</div>
+<div style="color:var(--teal);font-size:0.7rem;margin-bottom:1.5rem;letter-spacing:0.1em">INVESTMENT COMMITTEE</div>
+<nav id="nav" style="display:flex;flex-direction:column;gap:0.25rem">
+<button class="nav-btn active" onclick="showTab('overview')">Overview</button>
+<button class="nav-btn" onclick="showTab('holdings')">Holdings</button>
+<button class="nav-btn" onclick="showTab('positioning')">Positioning</button>
+<button class="nav-btn" onclick="showTab('attribution')">Attribution</button>
+<button class="nav-btn" onclick="showTab('voting')">IC Voting</button>
+<button class="nav-btn" onclick="showTab('watchlist')">Watchlist</button>
+</nav>
+<div style="position:absolute;bottom:1rem;left:1rem;right:1rem">
+<button onclick="toggleDark()" class="nav-btn" style="justify-content:center">Toggle Dark/Light</button>
+<div style="color:var(--muted);font-size:0.65rem;margin-top:0.5rem;text-align:center">Data as at 28 Feb 2026</div>
+</div>
+</div>
+
+<!-- MAIN -->
+<div class="main" style="margin-left:220px;padding:1.5rem;max-width:1400px">
+
+<!-- PORTFOLIO SELECTOR -->
+<div class="no-print" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+<div>
+<select id="portfolioSelect" onchange="onPortfolioChange()" style="font-weight:600;font-size:1rem;padding:0.5rem 1rem">
+<option value="blended">BWA Blended Growth</option>
+<option value="defensive">BWA Defensive</option>
+<option value="growth" selected>BWA Core Satellite Growth</option>
+<option value="diversified">BWA Diversified Growth</option>
+<option value="esg">BWA ESG Growth</option>
+</select>
+</div>
+<div style="font-size:0.75rem;color:var(--muted)">Total AUM: <strong style="color:var(--text);font-size:1rem">$1.32B</strong></div>
+</div>
+
+<!-- TAB: OVERVIEW -->
+<div id="tab-overview">
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0.75rem;margin-bottom:1rem" id="kpiCards"></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+<div class="card"><canvas id="navChart" height="200"></canvas></div>
+<div class="card"><canvas id="monthlyChart" height="200"></canvas></div>
+</div>
+<div class="card" style="margin-bottom:1rem">
+<h3 style="font-weight:600;margin-bottom:0.75rem;font-size:0.9rem">Portfolio Performance Summary</h3>
+<table id="portfolioSummaryTable"></table>
+</div>
+<div class="card">
+<h3 style="font-weight:600;margin-bottom:0.75rem;font-size:0.9rem">Risk Metrics</h3>
+<div id="riskMetrics" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:0.75rem"></div>
+</div>
+</div>
+
+<!-- TAB: HOLDINGS -->
+<div id="tab-holdings" style="display:none">
+<div class="card">
+<div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;align-items:center">
+<input type="text" id="searchBox" placeholder="Search holdings..." oninput="renderHoldings()" style="flex:1;min-width:200px">
+<select id="sectorFilter" onchange="renderHoldings()"><option value="">All Sectors</option></select>
+<select id="ragFilter" onchange="renderHoldings()"><option value="">All RAG</option><option value="RED">RED</option><option value="AMBER">AMBER</option><option value="GREEN">GREEN</option></select>
+<button class="btn btn-primary" onclick="exportCSV()">Export CSV</button>
+</div>
+<div style="overflow-x:auto"><table id="holdingsTable"></table></div>
+</div>
+</div>
+
+<!-- TAB: POSITIONING -->
+<div id="tab-positioning" style="display:none">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+<div class="card"><canvas id="sectorChart" height="250"></canvas></div>
+<div class="card"><canvas id="assetPie" height="250"></canvas></div>
+</div>
+<div class="card" style="margin-bottom:1rem">
+<h3 style="font-weight:600;margin-bottom:0.75rem;font-size:0.9rem">Asset Allocation Dashboard</h3>
+<table id="aaTable"></table>
+</div>
+<div class="card">
+<h3 style="font-weight:600;margin-bottom:0.75rem;font-size:0.9rem">Top Overweights & Underweights (1Y Relative Return)</h3>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem" id="owUwContainer"></div>
+</div>
+</div>
+
+<!-- TAB: ATTRIBUTION -->
+<div id="tab-attribution" style="display:none">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+<div class="card">
+<h3 style="font-weight:600;margin-bottom:0.75rem;font-size:0.9rem">Top 10 Contributors (1Y)</h3>
+<table id="topContrib"></table>
+</div>
+<div class="card">
+<h3 style="font-weight:600;margin-bottom:0.75rem;font-size:0.9rem">Bottom 10 Contributors (1Y)</h3>
+<table id="bottomContrib"></table>
+</div>
+</div>
+<div class="card" style="margin-bottom:1rem">
+<h3 style="font-weight:600;margin-bottom:0.75rem;font-size:0.9rem">Monthly Return Heatmap</h3>
+<div id="heatmap" style="overflow-x:auto"></div>
+</div>
+<div class="card">
+<h3 style="font-weight:600;margin-bottom:0.75rem;font-size:0.9rem">Sector Attribution</h3>
+<table id="sectorAttrib"></table>
+</div>
+</div>
+
+<!-- TAB: VOTING -->
+<div id="tab-voting" style="display:none">
+<div class="card" style="margin-bottom:1rem">
+<h3 style="font-weight:600;margin-bottom:0.75rem;font-size:0.9rem">IC Voting System</h3>
+<div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;align-items:center">
+<select id="voterSelect"><option value="">Select Member...</option></select>
+<button class="btn btn-secondary" onclick="showAdminLogin()">Admin (Dan Rake)</button>
+</div>
+<div id="adminPanel" style="display:none;margin-bottom:1rem;padding:1rem;border:1px solid var(--border);border-radius:0.5rem">
+<div id="adminLoginDiv">
+<input type="password" id="adminPw" placeholder="Admin password">
+<button class="btn btn-primary" onclick="adminLogin()">Login</button>
+</div>
+<div id="adminCreateDiv" style="display:none">
+<h4 style="font-weight:600;margin-bottom:0.5rem;font-size:0.85rem">Create New Poll</h4>
+<input type="text" id="pollTitle" placeholder="Poll title" style="width:100%;margin-bottom:0.5rem">
+<textarea id="pollDesc" placeholder="Description" style="width:100%;margin-bottom:0.5rem" rows="2"></textarea>
+<input type="text" id="pollOptions" placeholder="Options (comma separated, 2-5)" style="width:100%;margin-bottom:0.5rem">
+<button class="btn btn-primary" onclick="createPoll()">Create Poll</button>
+</div>
+</div>
+<div id="activePolls"></div>
+</div>
+<div class="card">
+<h3 style="font-weight:600;margin-bottom:0.75rem;font-size:0.9rem">Vote History</h3>
+<div id="voteHistory"></div>
+</div>
+</div>
+
+<!-- TAB: WATCHLIST -->
+<div id="tab-watchlist" style="display:none">
+<div class="card">
+<h3 style="font-weight:600;margin-bottom:0.75rem;font-size:0.9rem">Watchlist / Pipeline</h3>
+<div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap">
+<input type="text" id="wlTicker" placeholder="Ticker" style="width:80px">
+<input type="text" id="wlName" placeholder="Name" style="width:150px">
+<input type="text" id="wlThesis" placeholder="Thesis" style="flex:1;min-width:150px">
+<select id="wlAddedBy"></select>
+<select id="wlStatus"><option>Watching</option><option>Ready</option><option>Passed</option></select>
+<button class="btn btn-primary" onclick="addWatchlistItem()">Add</button>
+</div>
+<table id="watchlistTable"></table>
+</div>
+</div>
+
+</div><!-- end main -->
+<script>
+// ===== DATA =====
+const H=[{"s":"Australian Equities","st":"Fund","n":"CC Sage Capital Equity Plus Fund","t":"CHN8862AU","h":"n/a","a1m":2.2,"a3m":3.9,"a6m":0.71,"a1y":7.69,"a3y":9.99,"a5y":11.51,"r1m":-1.69,"r3m":-3.22,"r6m":-3.34,"r1y":-8.67,"r3y":-2.15,"r5y":0.89},{"s":"Australian Equities","st":"Fund","n":"Greencape High Conviction Fund","t":"HOW0035AU","h":"n/a","a1m":0.76,"a3m":4.01,"a6m":0.54,"a1y":4.06,"a3y":9.55,"a5y":8.94,"r1m":-3.13,"r3m":-3.11,"r6m":-3.51,"r1y":-12.31,"r3y":-2.59,"r5y":-1.68},{"s":"Australian Equities","st":"Fund","n":"Macquarie True Index Australian Share Fund","t":"MAQ0288AU","h":"n/a","a1m":3.89,"a3m":7.13,"a6m":4.06,"a1y":16.37,"a3y":12.15,"a5y":10.63,"r1m":0.0,"r3m":0.0,"r6m":0.0,"r1y":0.01,"r3y":0.01,"r5y":0.01},{"s":"Australian Equities","st":"ETF","n":"Vanguard Ethically Conscious Australian Shares ETF","t":"VETH","h":"n/a","a1m":2.94,"a3m":3.95,"a6m":1.55,"a1y":14.42,"a3y":12.65,"a5y":10.22,"r1m":-0.96,"r3m":-3.17,"r6m":-2.5,"r1y":-1.94,"r3y":0.51,"r5y":-0.4},{"s":"Australian Equities","st":"Fund","n":"Alphinity Sustainable Share Fund","t":"HOW0121AU","h":"n/a","a1m":6.72,"a3m":9.26,"a6m":2.92,"a1y":16.84,"a3y":12.86,"a5y":10.41,"r1m":2.83,"r3m":2.14,"r6m":-1.13,"r1y":0.47,"r3y":0.72,"r5y":-0.21},{"s":"Australian Equities","st":"Fund","n":"Macquarie Australian Small Companies","t":"MAQ0454AU","h":"n/a","a1m":-1.64,"a3m":-1.51,"a6m":3.33,"a1y":24.4,"a3y":15.11,"a5y":11.27,"r1m":0.92,"r3m":-3.03,"r6m":-2.09,"r1y":1.35,"r3y":2.6,"r5y":4.67},{"s":"Australian Equities","st":"Fund","n":"Ellerston Australian Emerging Leaders Fund","t":"ECL6748AU","h":"n/a","a1m":-2.08,"a3m":-11.24,"a6m":-11.56,"a1y":5.95,"a3y":17.26,"a5y":null,"r1m":-4.18,"r3m":-27.13,"r6m":-40.8,"r1y":-42.99,"r3y":-0.82,"r5y":null},{"s":"Australian Equities","st":"Fund","n":"Eiger Australian Small Companies Fund","t":"HOW2967AU","h":"n/a","a1m":-2.81,"a3m":-4.46,"a6m":-3.95,"a1y":15.94,"a3y":8.67,"a5y":5.12,"r1m":-0.25,"r3m":-5.99,"r6m":-9.38,"r1y":-7.11,"r3y":-3.84,"r5y":-1.49},{"s":"Australian Equities","st":"Fund","n":"DNR Emerging Companies","t":"PIM4357AU","h":"n/a","a1m":0.49,"a3m":9.92,"a6m":18.55,"a1y":44.02,"a3y":23.51,"a5y":16.82,"r1m":-8.74,"r3m":-0.99,"r6m":-12.99,"r1y":-12.16,"r3y":3.07,"r5y":4.57},{"s":"Australian Equities","st":"ETF","n":"Australian Small Companies Select ETF","t":"SMLL","h":"n/a","a1m":-1.43,"a3m":3.49,"a6m":16.05,"a1y":36.23,"a3y":14.65,"a5y":9.16,"r1m":1.13,"r3m":1.96,"r6m":10.63,"r1y":13.18,"r3y":2.14,"r5y":2.56},{"s":"Australian Equities","st":"Index","n":"S&P/ASX300 TR","t":"","h":"","a1m":3.89,"a3m":7.12,"a6m":4.05,"a1y":16.36,"a3y":12.14,"a5y":10.62,"r1m":null,"r3m":null,"r6m":null,"r1y":null,"r3y":null,"r5y":null},{"s":"Australian Equities","st":"Index","n":"S&P/ASX Small Ords TR","t":"","h":"","a1m":-2.57,"a3m":1.53,"a6m":5.42,"a1y":23.05,"a3y":12.51,"a5y":6.6,"r1m":null,"r3m":null,"r6m":null,"r1y":null,"r3y":null,"r5y":null},{"s":"Australian Equities","st":"Index","n":"S&P/ASX Emerging Companies TR","t":"","h":"","a1m":2.1,"a3m":15.89,"a6m":29.24,"a1y":48.94,"a3y":18.08,"a5y":12.17,"r1m":null,"r3m":null,"r6m":null,"r1y":null,"r3y":null,"r5y":null},{"s":"International Equities","st":"Fund","n":"T. Rowe Price Global Equity Fund (Unhedged) - Class M","t":"ETL8482AU","h":"N","a1m":-1.4,"a3m":-5.1,"a6m":-0.62,"a1y":2.47,"a3y":15.28,"a5y":6.83,"r1m":-0.31,"r3m":-0.42,"r6m":-1.23,"r1y":-3.27,"r3y":-3.24,"r5y":-7.58},{"s":"International Equities","st":"Fund","n":"GQG Partners Global Equity Z","t":"ETL2869AU","h":"N","a1m":6.2,"a3m":0.71,"a6m":2.14,"a1y":-8.5,"a3y":15.0,"a5y":13.86,"r1m":7.29,"r3m":5.39,"r6m":1.53,"r1y":-14.24,"r3y":-3.52,"r5y":-0.55},{"s":"International Equities","st":"Fund","n":"Nikko AM Global Share Fund","t":"SUN0031AU","h":"N","a1m":-5.32,"a3m":-12.35,"a6m":-12.78,"a1y":-9.33,"a3y":11.6,"a5y":8.46,"r1m":-4.23,"r3m":-7.68,"r6m":-13.39,"r1y":-15.07,"r3y":-6.91,"r5y":-5.95},{"s":"International Equities","st":"Fund","n":"L1 Capital International\u00a0Z","t":"ETL7165AU","h":"N","a1m":-4.89,"a3m":-10.6,"a6m":-9.6,"a1y":-5.13,"a3y":17.68,"a5y":null,"r1m":-3.79,"r3m":-5.92,"r6m":-10.21,"r1y":-10.87,"r3y":-0.84,"r5y":null},{"s":"International Equities","st":"Fund","n":"Ironbark Royal London Diversified Global Share Fund Class A (Unhedged)","t":"DAM2442AU","h":"N","a1m":-0.61,"a3m":-3.72,"a6m":1.85,"a1y":8.34,"a3y":20.34,"a5y":null,"r1m":0.48,"r3m":0.96,"r6m":1.24,"r1y":2.6,"r3y":1.82,"r5y":null},{"s":"International Equities","st":"Fund","n":"Macquarie True Index International Shares Fund","t":"MAQ0633AU","h":"N","a1m":-1.12,"a3m":-4.75,"a6m":0.59,"a1y":5.66,"a3y":18.49,"a5y":14.37,"r1m":-0.03,"r3m":-0.07,"r6m":-0.02,"r1y":-0.08,"r3y":-0.03,"r5y":-0.04},{"s":"International Equities","st":"ETF","n":"Vanguard Ethically Conscious Global Shares ETF","t":"VESG","h":"N","a1m":-1.86,"a3m":-5.73,"a6m":-0.53,"a1y":6.66,"a3y":18.76,"a5y":13.8,"r1m":-0.77,"r3m":-1.05,"r6m":-1.14,"r1y":0.92,"r3y":0.24,"r5y":-0.61},{"s":"International Equities","st":"ETF","n":"Betashares Global Sustainability Leaders ETF","t":"ETHI","h":"N","a1m":-2.44,"a3m":-8.09,"a6m":-5.82,"a1y":-4.03,"a3y":12.98,"a5y":11.12,"r1m":-1.35,"r3m":-3.42,"r6m":-6.43,"r1y":-9.77,"r3y":-5.53,"r5y":-3.29},{"s":"International Equities","st":"ETF","n":"iShares Core MSCI World ex Australia ESG ETF","t":"IWLD","h":"N","a1m":-2.17,"a3m":-5.19,"a6m":-0.43,"a1y":7.64,"a3y":18.96,"a5y":15.08,"r1m":-1.08,"r3m":-0.51,"r6m":-1.04,"r1y":1.9,"r3y":0.45,"r5y":0.66},{"s":"International Equities","st":"ETF","n":"Global X EURO STOXX 50 ETF","t":"ESTX","h":"N","a1m":1.29,"a3m":2.18,"a6m":6.78,"a1y":15.36,"a3y":17.51,"a5y":14.86,"r1m":2.38,"r3m":6.86,"r6m":6.17,"r1y":9.63,"r3y":-1.01,"r5y":0.45},{"s":"International Equities","st":"Fund","n":"Artisan Global Discovery Fund","t":"OPS8304AU","h":"N","a1m":-1.09,"a3m":-6.43,"a6m":-2.85,"a1y":-3.02,"a3y":12.16,"a5y":6.62,"r1m":-2.9,"r3m":-8.46,"r6m":-8.78,"r1y":-17.79,"r3y":-1.31,"r5y":-7.79},{"s":"International Equities","st":"Fund","n":"Bell Global Emerging Companies Fund","t":"BPF0029AU","h":"N","a1m":-1.25,"a3m":-6.3,"a6m":-10.48,"a1y":-11.41,"a3y":3.41,"a5y":4.92,"r1m":-3.06,"r3m":-8.34,"r6m":-16.42,"r1y":-26.18,"r3y":-10.06,"r5y":-4.51},{"s":"International Equities","st":"Fund","n":"Arrowstreet Global Small Companies","t":"MAC8493AU","h":"N","a1m":4.62,"a3m":9.69,"a6m":13.02,"a1y":24.65,"a3y":null,"a5y":null,"r1m":2.8,"r3m":7.65,"r6m":7.08,"r1y":9.89,"r3y":null,"r5y":null},{"s":"International Equities","st":"Fund","n":"Pzena Emerging Markets Value Fund Wholesale A","t":"ETL0483AU","h":"N","a1m":2.7,"a3m":10.4,"a6m":19.66,"a1y":32.14,"a3y":23.7,"a5y":15.72,"r1m":-1.01,"r3m":1.57,"r6m":1.31,"r1y":1.28,"r3y":4.39,"r5y":7.64},{"s":"International Equities","st":"Fund","n":"CC RWC Global Emerging Markets Fund","t":"CHN8850AU","h":"N","a1m":1.81,"a3m":8.92,"a6m":20.76,"a1y":34.55,"a3y":16.21,"a5y":4.22,"r1m":-1.89,"r3m":0.08,"r6m":2.41,"r1y":3.69,"r3y":-3.1,"r5y":-3.87},{"s":"International Equities","st":"Fund","n":"GQG Partners Emerging Markets Equity Fund - Z Class","t":"ETL4581AU","h":"N","a1m":2.14,"a3m":0.07,"a6m":7.24,"a1y":10.18,"a3y":16.56,"a5y":6.34,"r1m":-1.56,"r3m":-8.77,"r6m":-11.11,"r1y":-20.67,"r3y":-2.75,"r5y":-1.75},{"s":"International Equities","st":"Fund","n":"Legg Mason Martin Currie Emerging Markets","t":"ETL0201AU","h":"N","a1m":4.01,"a3m":11.26,"a6m":24.44,"a1y":32.89,"a3y":16.2,"a5y":4.12,"r1m":0.31,"r3m":2.42,"r6m":6.09,"r1y":2.04,"r3y":-3.11,"r5y":-3.97},{"s":"International Equities","st":"Fund","n":"Macquarie True Index International Shares Hedged Fund","t":"MAQ0421AU","h":"Y","a1m":0.83,"a3m":3.06,"a6m":9.62,"a1y":18.6,"a3y":19.41,"a5y":12.1,"r1m":-0.07,"r3m":-0.1,"r6m":-0.07,"r1y":-0.15,"r3y":-0.18,"r5y":-0.15},{"s":"International Equities","st":"Fund","n":"Ironbark Robeco Global Developed Enhanced Index Equity Fund \u2013 Class H (Hedged)","t":"DAM5404AU","h":"Y","a1m":1.32,"a3m":3.83,"a6m":10.46,"a1y":20.02,"a3y":20.92,"a5y":null,"r1m":0.42,"r3m":0.68,"r6m":0.76,"r1y":1.28,"r3y":1.32,"r5y":null},{"s":"International Equities","st":"ETF","n":"BetaShares NASDAQ 100 \u2013 Currency Hedged ETF","t":"HNDQ","h":"Y","a1m":-3.0,"a3m":-1.38,"a6m":5.35,"a1y":20.53,"a3y":25.95,"a5y":12.57,"r1m":-3.9,"r3m":-4.54,"r6m":-4.34,"r1y":1.78,"r3y":6.36,"r5y":0.32},{"s":"International Equities","st":"Index","n":"MSCI World ex-Aus Net TR","t":"","h":"","a1m":-1.09,"a3m":-4.68,"a6m":0.61,"a1y":5.74,"a3y":18.52,"a5y":14.41,"r1m":null,"r3m":null,"r6m":null,"r1y":null,"r3y":null,"r5y":null},{"s":"International Equities","st":"Index","n":"MSCI World ex-Aus Net TR (Hedged)","t":"","h":"","a1m":0.9,"a3m":3.15,"a6m":9.69,"a1y":18.75,"a3y":19.59,"a5y":12.25,"r1m":null,"r3m":null,"r6m":null,"r1y":null,"r3y":null,"r5y":null},{"s":"International Equities","st":"Index","n":"MSCI Emerging Market Net TR","t":"","h":"","a1m":3.7,"a3m":8.83,"a6m":18.35,"a1y":30.85,"a3y":19.31,"a5y":8.09,"r1m":null,"r3m":null,"r6m":null,"r1y":null,"r3y":null,"r5y":null},{"s":"International Equities","st":"Index","n":"MSCI World Small Cap Net TR","t":"","h":"","a1m":1.81,"a3m":2.03,"a6m":5.93,"a1y":14.77,"a3y":13.47,"a5y":9.43,"r1m":null,"r3m":null,"r6m":null,"r1y":null,"r3y":null,"r5y":null},{"s":"Australian Property","st":"Fund","n":"Cromwell Phoenix Property Securities","t":"CRM0008AU","h":"n/a","a1m":-2.02,"a3m":-4.86,"a6m":-7.44,"a1y":9.93,"a3y":10.34,"a5y":10.18,"r1m":1.26,"r3m":-0.8,"r6m":2.34,"r1y":4.8,"r3y":0.71,"r5y":1.16},{"s":"Australian Property","st":"Index","n":"S&P/ASX300 Property TR","t":"","h":"","a1m":-3.27,"a3m":-4.06,"a6m":-9.78,"a1y":5.13,"a3y":9.63,"a5y":9.02,"r1m":null,"r3m":null,"r6m":null,"r1y":null,"r3y":null,"r5y":null},{"s":"International Property","st":"Fund","n":"Macquarie True Index Global Real Estate Securities","t":"MAQ0832AU","h":"Y","a1m":5.19,"a3m":0.97,"a6m":2.12,"a1y":2.08,"a3y":6.96,"a5y":6.1,"r1m":-1.92,"r3m":-7.59,"r6m":-8.75,"r1y":-12.25,"r3y":-1.08,"r5y":1.7},{"s":"International Property","st":"Fund","n":"Quay Global Real Estate Hedged","t":"BFL3333AU","h":"Y","a1m":4.2,"a3m":5.12,"a6m":4.71,"a1y":5.65,"a3y":4.78,"a5y":null,"r1m":-2.92,"r3m":-3.44,"r6m":-6.16,"r1y":-8.67,"r3y":-3.25,"r5y":null},{"s":"International Property","st":"Fund","n":"Quay Global Real Estate Fund (Unhedged)","t":"BFL0020AU","h":"N","a1m":2.16,"a3m":-2.02,"a6m":-3.23,"a1y":-3.78,"a3y":5.18,"a5y":5.47,"r1m":-4.96,"r3m":-10.57,"r6m":-14.1,"r1y":-18.11,"r3y":-2.85,"r5y":1.07},{"s":"International Property","st":"Index","n":"FTSE EPRA Nareit Developed Mkt Net TR (Hedged)","t":"","h":"","a1m":7.12,"a3m":8.55,"a6m":10.87,"a1y":14.33,"a3y":8.03,"a5y":4.4,"r1m":null,"r3m":null,"r6m":null,"r1y":null,"r3y":null,"r5y":null},{"s":"Infrastructure","st":"Fund","n":"4D Global Infrastructure (Hedged)","t":"BFL3306AU","h":"Y","a1m":6.65,"a3m":10.67,"a6m":18.27,"a1y":31.11,"a3y":12.78,"a5y":null,"r1m":-2.03,"r3m":0.97,"r6m":3.79,"r1y":10.18,"r3y":0.42,"r5y":null},{"s":"Infrastructure","st":"Fund","n":"Macquarie True Index Global Infrastructure Securities","t":"MAQ0831AU","h":"Y","a1m":6.73,"a3m":2.27,"a6m":5.85,"a1y":9.06,"a3y":11.54,"a5y":12.0,"r1m":-1.95,"r3m":-7.43,"r6m":-8.63,"r1y":-11.87,"r3y":-0.82,"r5y":1.83},{"s":"Infrastructure","st":"Fund","n":"4D Global Infrastructure (Unhedged)","t":"BFL0019AU","h":"N","a1m":5.26,"a3m":5.14,"a6m":12.5,"a1y":27.61,"a3y":15.11,"a5y":13.23,"r1m":-3.42,"r3m":-4.56,"r6m":-1.98,"r1y":6.67,"r3y":2.75,"r5y":3.06},{"s":"Infrastructure","st":"Index","n":"FTSE Global Developed Core 50/50 Infrastructure (Hedged)","t":"","h":"","a1m":8.68,"a3m":9.7,"a6m":14.48,"a1y":20.94,"a3y":12.36,"a5y":10.16,"r1m":null,"r3m":null,"r6m":null,"r1y":null,"r3y":null,"r5y":null},{"s":"Australian Bonds","st":"Fund","n":"Franklin Australian Absolute Return Bond Fund - Class W","t":"FRT0027AU","h":"n/a","a1m":0.03,"a3m":0.77,"a6m":1.41,"a1y":4.09,"a3y":5.15,"a5y":2.23,"r1m":-0.85,"r3m":0.31,"r6m":1.37,"r1y":0.94,"r3y":1.54,"r5y":1.63},{"s":"Australian Bonds","st":"Fund","n":"Legg Mason Western Asset Australian Bond","t":"SSB0122AU","h":"n/a","a1m":0.87,"a3m":0.53,"a6m":0.11,"a1y":3.39,"a3y":4.12,"a5y":0.8,"r1m":-0.01,"r3m":0.07,"r6m":0.07,"r1y":0.24,"r3y":0.51,"r5y":0.2},{"s":"Australian Bonds","st":"Fund","n":"Realm Strategic Income Enduring","t":"OMF5868AU","h":"n/a","a1m":-1.81,"a3m":-0.62,"a6m":1.2,"a1y":5.46,"a3y":8.65,"a5y":7.61,"r1m":-2.69,"r3m":-1.08,"r6m":1.16,"r1y":2.31,"r3y":5.04,"r5y":7.01},{"s":"Australian Bonds","st":"Fund","n":"Realm Short Term Income Fund","t":"OMF3725AU","h":"n/a","a1m":0.2,"a3m":1.03,"a6m":2.22,"a1y":4.96,"a3y":6.08,"a5y":4.38,"r1m":-0.68,"r3m":0.57,"r6m":2.18,"r1y":1.81,"r3y":2.47,"r5y":3.78},{"s":"Australian Bonds","st":"Fund","n":"Yarra Enhanced Income Fund","t":"JBW0016AU","h":"n/a","a1m":0.43,"a3m":0.59,"a6m":0.49,"a1y":4.41,"a3y":5.59,"a5y":4.25,"r1m":-0.45,"r3m":0.13,"r6m":0.45,"r1y":1.26,"r3y":1.98,"r5y":3.65},{"s":"Australian Bonds","st":"Fund","n":"Elstree Hybrid Fund","t":"EIM0001AU","h":"n/a","a1m":0.54,"a3m":1.67,"a6m":2.23,"a1y":5.01,"a3y":6.16,"a5y":5.29,"r1m":-0.34,"r3m":1.21,"r6m":2.2,"r1y":1.86,"r3y":2.54,"r5y":4.7},{"s":"Australian Bonds","st":"Fund","n":"Macquarie Subordinated Debt Active ETF","t":"MAQ5289AU","h":"n/a","a1m":0.29,"a3m":1.56,"a6m":3.23,"a1y":6.36,"a3y":null,"a5y":null,"r1m":-0.59,"r3m":1.1,"r6m":3.19,"r1y":3.22,"r3y":null,"r5y":null},{"s":"Australian Bonds","st":"Hybrid","n":"NAB Capital Notes 3","t":"NABPF","h":"n/a","a1m":0.5,"a3m":2.06,"a6m":2.62,"a1y":6.1,"a3y":5.98,"a5y":5.11,"r1m":-0.38,"r3m":1.61,"r6m":2.59,"r1y":2.95,"r3y":2.36,"r5y":4.51},{"s":"Australian Bonds","st":"Hybrid","n":"Macquarie Group Capital Notes 7","t":"MQGPG","h":"n/a","a1m":0.79,"a3m":3.72,"a6m":3.73,"a1y":8.4,"a3y":3.81,"a5y":2.27,"r1m":-0.09,"r3m":3.26,"r6m":3.69,"r1y":5.25,"r3y":0.2,"r5y":1.67},{"s":"Australian Bonds","st":"Hybrid","n":"Macquarie Group Capital Notes 4","t":"MQGPD","h":"n/a","a1m":-1.09,"a3m":0.14,"a6m":0.78,"a1y":6.08,"a3y":6.34,"a5y":4.89,"r1m":-1.97,"r3m":-0.32,"r6m":0.75,"r1y":2.94,"r3y":2.73,"r5y":4.29},{"s":"Australian Bonds","st":"Hybrid","n":"CBA PERLS XII","t":"CBAPI","h":"n/a","a1m":0.56,"a3m":1.67,"a6m":3.34,"a1y":6.38,"a3y":6.94,"a5y":5.85,"r1m":-0.32,"r3m":1.21,"r6m":3.31,"r1y":3.24,"r3y":3.32,"r5y":5.25},{"s":"Australian Bonds","st":"Index","n":"Bloomberg Ausbond Composite 0+ Yr","t":"","h":"","a1m":0.88,"a3m":0.46,"a6m":0.03,"a1y":3.15,"a3y":3.61,"a5y":0.6,"r1m":null,"r3m":null,"r6m":null,"r1y":null,"r3y":null,"r5y":null},{"s":"International Bonds","st":"Fund","n":"Ardea Real Outcome Fund","t":"HOW0098AU","h":"Y","a1m":-0.28,"a3m":1.23,"a6m":3.4,"a1y":5.99,"a3y":3.88,"a5y":2.26,"r1m":-1.68,"r3m":-0.16,"r6m":0.38,"r1y":1.53,"r3y":-0.57,"r5y":2.1},{"s":"International Bonds","st":"Fund","n":"AB Dynamic Global Fixed Income","t":"ACM0001AU","h":"Y","a1m":0.53,"a3m":1.27,"a6m":2.22,"a1y":5.17,"a3y":5.93,"a5y":2.59,"r1m":-0.86,"r3m":-0.11,"r6m":-0.81,"r1y":0.71,"r3y":1.48,"r5y":2.43},{"s":"International Bonds","st":"Fund","n":"PIMCO Income Fund Wholesale","t":"ETL0458AU","h":"Y","a1m":1.14,"a3m":2.03,"a6m":4.64,"a1y":8.5,"a3y":7.2,"a5y":2.9,"r1m":-0.25,"r3m":0.64,"r6m":1.62,"r1y":4.04,"r3y":2.75,"r5y":2.73},{"s":"International Bonds","st":"Fund","n":"Legg Mason Western Asset Global Bond Bonds","t":"SSB8320AU","h":"Y","a1m":1.3,"a3m":1.51,"a6m":3.23,"a1y":5.09,"a3y":4.11,"a5y":-0.45,"r1m":-0.09,"r3m":0.12,"r6m":0.2,"r1y":0.63,"r3y":-0.34,"r5y":-0.61},{"s":"International Bonds","st":"Fund","n":"Colchester Emerging Markets Bond I","t":"ETL3065AU","h":"Y","a1m":-0.47,"a3m":-2.87,"a6m":1.39,"a1y":7.43,"a3y":10.13,"a5y":6.34,"r1m":-1.86,"r3m":-4.26,"r6m":-1.63,"r1y":2.97,"r3y":5.68,"r5y":6.18},{"s":"Cash","st":"Index","n":"BloombergBarclays Global Aggregate Bond (Hedged)","t":"","h":"","a1m":1.39,"a3m":1.39,"a6m":3.02,"a1y":4.46,"a3y":4.44,"a5y":0.16,"r1m":null,"r3m":null,"r6m":null,"r1y":null,"r3y":null,"r5y":null},{"s":"Alternatives","st":"Fund","n":"L1 Capital Long Short Fund Daily Class","t":"ETL0490AU","h":"n/a","a1m":-0.92,"a3m":12.33,"a6m":28.9,"a1y":59.28,"a3y":19.29,"a5y":17.74,"r1m":0.2,"r3m":16.07,"r6m":29.33,"r1y":58.56,"r3y":10.46,"r5y":9.49},{"s":"Alternatives","st":"Fund","n":"CT Pyrford Global Absolute Return","t":"PER0728AU","h":"Mixed","a1m":2.78,"a3m":2.79,"a6m":3.2,"a1y":8.42,"a3y":8.89,"a5y":7.84,"r1m":3.9,"r3m":6.53,"r6m":3.63,"r1y":7.71,"r3y":0.06,"r5y":-0.41},{"s":"Alternatives","st":"Fund","n":"CFS Aspect Diversified Managed Futures A","t":"FSF1086AU","h":"n/a","a1m":7.02,"a3m":16.36,"a6m":28.28,"a1y":14.99,"a3y":5.2,"a5y":13.15,"r1m":8.14,"r3m":20.1,"r6m":28.71,"r1y":14.27,"r3y":-3.64,"r5y":4.9},{"s":"Alternatives","st":"Fund","n":"Macquarie P/E FX Alpha","t":"MAQ5143AU","h":"n/a","a1m":0.15,"a3m":-6.46,"a6m":-1.84,"a1y":-17.41,"a3y":1.14,"a5y":7.59,"r1m":1.26,"r3m":-2.71,"r6m":-1.41,"r1y":-18.12,"r3y":-7.69,"r5y":-0.66},{"s":"Cash","st":"Index","n":"Bloomberg All Hedge Fund Index","t":"","h":"","a1m":-1.12,"a3m":-3.74,"a6m":-0.43,"a1y":0.71,"a3y":8.83,"a5y":8.25,"r1m":null,"r3m":null,"r6m":null,"r1y":null,"r3y":null,"r5y":null},{"s":"Multi-Asset","st":"Fund","n":"","t":"","h":"","a1m":null,"a3m":null,"a6m":null,"a1y":null,"a3y":null,"a5y":null,"r1m":null,"r3m":null,"r6m":null,"r1y":null,"r3y":null,"r5y":null},{"s":"Cash","st":"ETF","n":"BetaShares High Interest Cash ETF","t":"AAA","h":"n/a","a1m":0.29,"a3m":0.93,"a6m":1.86,"a1y":3.93,"a3y":4.25,"a5y":2.98,"r1m":0.01,"r3m":0.03,"r6m":0.07,"r1y":0.1,"r3y":0.11,"r5y":0.15},{"s":"Cash","st":"Index","n":"BloombergAusbond Bank Bill","t":"","h":"","a1m":0.28,"a3m":0.9,"a6m":1.8,"a1y":3.83,"a3y":4.14,"a5y":2.83,"r1m":null,"r3m":null,"r6m":null,"r1y":null,"r3y":null,"r5y":null}];
+
+const PORTFOLIOS={
+blended:{name:"BWA Blended Growth",inception:"11-Jan-21",benchmark:"CPI +3%",nav:87.877,
+  weights:{"CHN8862AU":2.5,"HOW0035AU":2.5,"MAQ0288AU":5.5,"MAQ0454AU":3.25,"PIM4357AU":1.5,"ECL6748AU":1,"ETL7165AU":3.5,"OPS8304AU":1.5,"MAC8493AU":3.5,"ESTX":5,"ETL1864AU":3.5,"HNDQ":2.75,"MAQ0421AU":23.5,"BFL3333AU":3.5,"BFL0019AU":4.5,"SSB0122AU":2.5,"OMF5868AU":2,"OMF3725AU":2,"JBW0016AU":3.5,"SUBD":3.5,"ACM0001AU":2.5,"ETL0458AU":3,"PER0728AU":2,"MAQ9788AU":1.5},
+  perf:{m1:1.25,m3:2.89,m6:5.14,ytd:2.44,y1:10.74,y3:10.47,incep:6.19},
+  bench:{m1:0.6,m3:2.06,m6:3.52,ytd:1.82,y1:6.65,y3:6.69,incep:7.56},
+  monthly:[{m:"Feb 26",f:1.25,b:0.6},{m:"Jan 26",f:1.18,b:1.21},{m:"Dec 25",f:0.44,b:0.24},{m:"Nov 25",f:-0.17,b:0.24},{m:"Oct 25",f:1.45,b:0.69},{m:"Sep 25",f:0.89,b:0.5},{m:"Aug 25",f:1.43,b:0.5},{m:"Jul 25",f:1.39,b:0.51},{m:"Jun 25",f:1.43,b:0.55},{m:"May 25",f:3.53,b:0.58},{m:"Apr 25",f:-0.81,b:0.53},{m:"Mar 25",f:-1.67,b:0.32},{m:"Feb 25",f:-1.62,b:0.31},{m:"Jan 25",f:2.35,b:0.32},{m:"Dec 24",f:-0.69,b:0.31},{m:"Nov 24",f:1.8,b:0.33}],
+  navHist:[{m:"Feb 26",v:87.877,p:1.1852},{m:"Jan 26",v:92.474,p:1.1706},{m:"Dec 25",v:96.611,p:1.1611},{m:"Nov 25",v:99.044,p:1.156},{m:"Oct 25",v:100.405,p:1.158},{m:"Sep 25",v:106.532,p:1.1414},{m:"Aug 25",v:115.571,p:1.1313},{m:"Jul 25",v:115.972,p:1.1154},{m:"Jun 25",v:114.969,p:1.1001},{m:"May 25",v:115.722,p:1.1056},{m:"Apr 25",v:112.527,p:1.0679},{m:"Mar 25",v:114.594,p:1.0766},{m:"Feb 25",v:116.22,p:1.0949},{m:"Jan 25",v:119.787,p:1.1129},{m:"Dec 24",v:118.785,p:1.0931},{m:"Nov 24",v:119.93,p:1.1007}],
+  risk:{alpha:1.28,beta:1.97,te:4.12,sharpe:1.5,ir:0.94,stddev:4.37,m2:-1.21}
+},
+defensive:{name:"BWA Defensive",inception:"2019",benchmark:"Various",nav:247.2,
+  weights:{"SSB0122AU":10,"OMF5868AU":5,"OMF3725AU":10,"JBW0016AU":16,"SUBD":8,"MAQ5289AU":2,"NABPF":2,"MQGPG":2,"MQGPD":2,"CBAPI":2,"ACM0001AU":10,"ETL0458AU":12.5,"VBND":7.5,"ETL3065AU":3,"PER0728AU":8},
+  perf:{m1:0.5,m3:1.5,m6:3.0,ytd:1.2,y1:4.83,y3:4.5,incep:1.57},
+  bench:{m1:0.5,m3:1.5,m6:2.5,ytd:1.0,y1:6.65,y3:6.69,incep:5.0},
+  monthly:[{m:"Feb 26",f:0.5,b:0.5},{m:"Jan 26",f:0.4,b:0.5},{m:"Dec 25",f:0.3,b:0.3},{m:"Nov 25",f:0.2,b:0.3},{m:"Oct 25",f:0.6,b:0.4},{m:"Sep 25",f:0.4,b:0.4},{m:"Aug 25",f:0.5,b:0.4},{m:"Jul 25",f:0.6,b:0.4},{m:"Jun 25",f:0.5,b:0.4},{m:"May 25",f:1.2,b:0.4},{m:"Apr 25",f:0.1,b:0.4},{m:"Mar 25",f:-0.3,b:0.3}],
+  navHist:[{m:"Feb 26",v:247.2,p:1.05},{m:"Jan 26",v:246.0,p:1.048},{m:"Dec 25",v:245.0,p:1.045},{m:"Nov 25",v:244.5,p:1.043},{m:"Oct 25",v:243.0,p:1.04},{m:"Sep 25",v:241.0,p:1.036},{m:"Aug 25",v:239.5,p:1.032},{m:"Jul 25",v:238.0,p:1.028},{m:"Jun 25",v:236.5,p:1.024},{m:"May 25",v:235.0,p:1.02},{m:"Apr 25",v:233.0,p:1.016},{m:"Mar 25",v:232.0,p:1.012}],
+  risk:{alpha:0.5,beta:0.3,te:1.5,sharpe:0.8,ir:0.3,stddev:2.1,m2:-0.5}
+},
+growth:{name:"BWA Core Satellite Growth",inception:"08-Sep-22",benchmark:"CPI +5%",nav:619.413,
+  weights:{"CHN8862AU":3,"MAQ0288AU":13,"MAQ0454AU":4,"PIM4357AU":4,"ESTX":6,"MAQ0421AU":49,"BFL0020AU":4,"MAQ0832AU":3,"BFL0019AU":3,"MAQ0831AU":2},
+  perf:{m1:1.45,m3:4.08,m6:6.96,ytd:2.98,y1:16.42,y3:15.15,incep:13.43},
+  bench:{m1:0.77,m3:2.55,m6:4.55,ytd:2.15,y1:8.76,y3:8.8,incep:9.39},
+  monthly:[{m:"Feb 26",f:1.45,b:0.77},{m:"Jan 26",f:1.51,b:1.37},{m:"Dec 25",f:1.06,b:0.4},{m:"Nov 25",f:-0.35,b:0.4},{m:"Oct 25",f:1.84,b:0.87},{m:"Sep 25",f:1.27,b:0.66},{m:"Aug 25",f:2.10,b:0.66},{m:"Jul 25",f:2.05,b:0.68},{m:"Jun 25",f:2.42,b:0.70},{m:"May 25",f:4.98,b:0.76},{m:"Apr 25",f:0.13,b:0.68},{m:"Mar 25",f:-2.97,b:0.48},{m:"Feb 25",f:-2.52,b:0.46},{m:"Jan 25",f:3.22,b:0.48},{m:"Dec 24",f:-0.60,b:0.46},{m:"Nov 24",f:2.87,b:0.50}],
+  navHist:[{m:"Feb 26",v:619.413,p:1.4073},{m:"Jan 26",v:595.164,p:1.3872},{m:"Dec 25",v:573.931,p:1.37},{m:"Nov 25",v:554.435,p:1.3556},{m:"Oct 25",v:548.694,p:1.3604},{m:"Sep 25",v:515.462,p:1.3358},{m:"Aug 25",v:486.817,p:1.3191},{m:"Jul 25",v:455.465,p:1.292},{m:"Jun 25",v:431.832,p:1.266},{m:"May 25",v:413.946,p:1.2655},{m:"Apr 25",v:384.423,p:1.2055},{m:"Mar 25",v:369.177,p:1.2039},{m:"Feb 25",v:367.982,p:1.2407},{m:"Jan 25",v:370.239,p:1.2728},{m:"Dec 24",v:347.265,p:1.2413},{m:"Nov 24",v:335.589,p:1.2488}],
+  risk:{alpha:-0.89,beta:2.70,te:5.96,sharpe:1.89,ir:1.19,stddev:6.22,m2:-2.46}
+},
+diversified:{name:"BWA Diversified Growth",inception:"2019",benchmark:"CPI +5%",nav:321.0,
+  weights:{"CHN8862AU":4,"HOW0035AU":4,"MAQ0288AU":6,"MAQ0454AU":6,"PIM4357AU":3,"ECL6748AU":4,"ETL7165AU":9,"OPS8304AU":3,"MAC8493AU":4.5,"ESTX":6,"ETL0483AU":4.5,"ETL4581AU":2.5,"ETL0666AU":2.5,"ETL1864AU":4,"HNDQ":3,"MAQ0421AU":12,"BFL3333AU":5,"BFL0019AU":6,"MAQ9788AU":2.5,"FSF1086AU":2.5},
+  perf:{m1:1.3,m3:3.2,m6:5.8,ytd:2.5,y1:11.27,y3:11.74,incep:7.83},
+  bench:{m1:0.77,m3:2.55,m6:4.55,ytd:2.15,y1:8.76,y3:8.8,incep:9.39},
+  monthly:[{m:"Feb 26",f:1.3,b:0.77},{m:"Jan 26",f:1.2,b:1.37},{m:"Dec 25",f:0.8,b:0.4},{m:"Nov 25",f:-0.25,b:0.4},{m:"Oct 25",f:1.6,b:0.87},{m:"Sep 25",f:1.0,b:0.66},{m:"Aug 25",f:1.8,b:0.66},{m:"Jul 25",f:1.7,b:0.68},{m:"Jun 25",f:1.9,b:0.70},{m:"May 25",f:4.2,b:0.76},{m:"Apr 25",f:-0.4,b:0.68},{m:"Mar 25",f:-2.3,b:0.48}],
+  navHist:[{m:"Feb 26",v:321,p:1.35},{m:"Jan 26",v:317,p:1.34},{m:"Dec 25",v:313,p:1.33},{m:"Nov 25",v:310,p:1.325},{m:"Oct 25",v:308,p:1.32},{m:"Sep 25",v:303,p:1.31},{m:"Aug 25",v:298,p:1.3},{m:"Jul 25",v:290,p:1.28},{m:"Jun 25",v:284,p:1.26},{m:"May 25",v:278,p:1.25},{m:"Apr 25",v:268,p:1.22},{m:"Mar 25",v:265,p:1.21}],
+  risk:{alpha:0.5,beta:1.8,te:5.2,sharpe:1.3,ir:0.6,stddev:5.8,m2:-1.8}
+},
+esg:{name:"BWA ESG Growth",inception:"17-Aug-22",benchmark:"CPI +5%",nav:31.955,
+  weights:{"VETH":25,"HOW0121AU":15,"VESG":20,"ETHI":20,"IWLD":20},
+  perf:{m1:-0.16,m3:-3.15,m6:-2.43,ytd:-3.13,y1:4.06,y3:11.35,incep:8.9},
+  bench:{m1:0.77,m3:2.55,m6:4.55,ytd:2.15,y1:8.76,y3:8.8,incep:9.5},
+  monthly:[{m:"Feb 26",f:-0.16,b:0.77},{m:"Jan 26",f:-2.97,b:1.37},{m:"Dec 25",f:-0.02,b:0.4},{m:"Nov 25",f:-1.73,b:0.4},{m:"Oct 25",f:2.12,b:0.87},{m:"Sep 25",f:0.39,b:0.66},{m:"Aug 25",f:1.96,b:0.66},{m:"Jul 25",f:2.07,b:0.68},{m:"Jun 25",f:1.23,b:0.7},{m:"May 25",f:5.37,b:0.76},{m:"Apr 25",f:0.67,b:0.68},{m:"Mar 25",f:-4.57,b:0.48},{m:"Feb 25",f:-3.09,b:0.46},{m:"Jan 25",f:3.66,b:0.48},{m:"Dec 24",f:-0.72,b:0.46},{m:"Nov 24",f:3.97,b:0.5}],
+  navHist:[{m:"Feb 26",v:31.955,p:1.2831},{m:"Jan 26",v:32.092,p:1.2852},{m:"Dec 25",v:33.571,p:1.3308},{m:"Nov 25",v:33.32,p:1.331},{m:"Oct 25",v:33.508,p:1.3545},{m:"Sep 25",v:31.405,p:1.3264},{m:"Aug 25",v:30.899,p:1.3212},{m:"Jul 25",v:28.575,p:1.2958},{m:"Jun 25",v:27.746,p:1.2695},{m:"May 25",v:26.96,p:1.2587},{m:"Apr 25",v:24.838,p:1.1945},{m:"Mar 25",v:23.723,p:1.1866},{m:"Feb 25",v:24.04,p:1.2434},{m:"Jan 25",v:24.124,p:1.283},{m:"Dec 24",v:22.99,p:1.2476},{m:"Nov 24",v:22.964,p:1.2567}],
+  risk:{alpha:0.19,beta:0.09,te:8.68,sharpe:0.07,ir:-0.47,stddev:8.65,m2:-5.24}
+}};
+
+const RAG_MAP={"MAQ9788AU":"RED","MAQ5143AU":"RED","ETL0666AU":"RED","ETL7165AU":"RED","OPS8304AU":"RED","ETHI":"RED","BFL0020AU":"RED","HOW0035AU":"AMBER","CHN8862AU":"AMBER","ECL6748AU":"AMBER","ETL8482AU":"AMBER","ETL1864AU":"AMBER","ETL4581AU":"AMBER","VESG":"AMBER","IWLD":"AMBER","SSB0122AU":"AMBER","VBND":"AMBER","BFL3333AU":"AMBER","MAQ0832AU":"AMBER","PIM4357AU":"GREEN","ETL0483AU":"GREEN","SMLL":"GREEN","BFL3306AU":"GREEN","BFL0019AU":"GREEN","MAC8493AU":"GREEN","MAQ0454AU":"GREEN","DAM5404AU":"GREEN","HNDQ":"GREEN","MAQ0421AU":"GREEN","HOW0121AU":"GREEN","MAQ0288AU":"GREEN","VETH":"GREEN","ESTX":"GREEN","FSF1086AU":"GREEN","PER0728AU":"GREEN","ETL0458AU":"GREEN","ETL3065AU":"GREEN","OMF5868AU":"GREEN","MAQ0831AU":"GREEN","JBW0016AU":"GREEN","SUBD":"GREEN","MAQ5289AU":"GREEN","ACM0001AU":"GREEN","OMF3725AU":"GREEN","ETL0490AU":"GREEN","EIM0001AU":"GREEN"};
+
+const AA_VIEWS=[
+{ac:"Australian Equities",val:"Very Expensive",mom:"Positive",mac:"Neutral",ov:"Underweight"},
+{ac:"US Equities",val:"Very Expensive",mom:"Neutral",mac:"Neutral",ov:"Underweight"},
+{ac:"European Equities",val:"Fair to Expensive",mom:"Positive",mac:"Neutral",ov:"Neutral"},
+{ac:"Asian Equities",val:"Fair to Expensive",mom:"Very Positive",mac:"Negative",ov:"Neutral"},
+{ac:"Emerging Markets",val:"Fair to Expensive",mom:"Very Positive",mac:"Neutral",ov:"Neutral"},
+{ac:"Listed Property",val:"Fair to Cheap",mom:"Positive",mac:"Positive",ov:"Overweight"},
+{ac:"Listed Infrastructure",val:"Fair",mom:"Very Positive",mac:"Positive",ov:"Overweight"},
+{ac:"Australian Bonds",val:"Fair to Cheap",mom:"Neutral",mac:"Neutral",ov:"Neutral"},
+{ac:"Global Bonds",val:"Fair",mom:"Positive",mac:"Neutral",ov:"Neutral"},
+{ac:"AUD/USD",val:"Fair to Cheap",mom:"Positive",mac:"Positive",ov:"Overweight"}
+];
+
+const IC_MEMBERS=["Dan Rake","Chris MacEachern","Chris Lioutas","Stuart Maunder","Tess Brennan","Toby Lewis","Will Allen","Jayden Ribarovski","Hazir Hilmy","April Harper","Hayden Beamish"];
+
+const SEED_POLLS=[{id:"seed1",title:"NASDAQ ETF vs Robeco - Growth Portfolio",desc:"Allocate 3% of Growth portfolio to BetaShares hedged NASDAQ ETF or Robeco Enhanced Index",options:["NASDAQ ETF","Robeco Enhanced Index","Abstain"],created:"2026-02-23",closed:true,votes:[{member:"Dan Rake",option:"NASDAQ ETF"},{member:"Chris MacEachern",option:"NASDAQ ETF"},{member:"Stuart Maunder",option:"NASDAQ ETF"},{member:"Chris Lioutas",option:"Robeco Enhanced Index"},{member:"Tess Brennan",option:"Abstain"}]}];
+
+// ===== STATE & UTILS =====
+let curPortfolio='growth', charts={}, adminAuth=false;
+const $=id=>document.getElementById(id);
+const fmt=v=>v==null?'—':(v>=0?'+':'')+v.toFixed(2)+'%';
+const fmtM=v=>'$'+v.toFixed(1)+'M';
+const cls=v=>v==null?'':(v>=0?'pos':'neg');
+
+function toggleDark(){document.documentElement.classList.toggle('dark');localStorage.setItem('dark',document.documentElement.classList.contains('dark'))}
+if(localStorage.getItem('dark')==='true')document.documentElement.classList.add('dark');
+
+function showTab(t){
+  document.querySelectorAll('[id^="tab-"]').forEach(el=>el.style.display='none');
+  $('tab-'+t).style.display='block';
+  document.querySelectorAll('.nav-btn').forEach((b,i)=>{b.classList.remove('active')});
+  const tabs=['overview','holdings','positioning','attribution','voting','watchlist'];
+  const idx=tabs.indexOf(t);
+  if(idx>=0)document.querySelectorAll('.nav-btn')[idx].classList.add('active');
+  if(t==='positioning')renderPositioning();
+  if(t==='attribution')renderAttribution();
+}
+
+function onPortfolioChange(){curPortfolio=$('portfolioSelect').value;renderAll()}
+
+function getP(){return PORTFOLIOS[curPortfolio]}
+function getFunds(){
+  const p=getP();
+  return H.filter(h=>h.st!=='Index'&&h.n).map(h=>{
+    const w=p.weights[h.t]||0;
+    return {...h,w,rag:RAG_MAP[h.t]||''};
+  });
+}
+
+// ===== OVERVIEW =====
+function renderOverview(){
+  const p=getP();
+  const kpis=[
+    {lbl:'NAV',val:fmtM(p.nav)},
+    {lbl:'1M Return',val:fmt(p.perf.m1),c:cls(p.perf.m1)},
+    {lbl:'3M Return',val:fmt(p.perf.m3),c:cls(p.perf.m3)},
+    {lbl:'YTD Return',val:fmt(p.perf.ytd),c:cls(p.perf.ytd)},
+    {lbl:'1Y Return',val:fmt(p.perf.y1),c:cls(p.perf.y1)},
+    {lbl:'3Y p.a.',val:fmt(p.perf.y3),c:cls(p.perf.y3)},
+    {lbl:'Since Incep.',val:fmt(p.perf.incep),c:cls(p.perf.incep)},
+    {lbl:'vs Benchmark',val:fmt(p.perf.y1-p.bench.y1),c:cls(p.perf.y1-p.bench.y1)},
+  ];
+  $('kpiCards').innerHTML=kpis.map(k=>`<div class="card kpi"><div class="val ${k.c||''}">${k.val}</div><div class="lbl">${k.lbl}</div></div>`).join('');
+
+  // NAV Chart
+  const nh=[...p.navHist].reverse();
+  if(charts.nav)charts.nav.destroy();
+  const isDark=document.documentElement.classList.contains('dark');
+  charts.nav=new Chart($('navChart'),{type:'line',data:{labels:nh.map(x=>x.m),datasets:[{label:'NAV ($M)',data:nh.map(x=>x.v),borderColor:'#0d9488',backgroundColor:'rgba(13,148,136,0.1)',fill:true,tension:0.3},{label:'Unit Price',data:nh.map(x=>x.p),borderColor:'#6366f1',yAxisID:'y1',tension:0.3}]},options:{responsive:true,plugins:{title:{display:true,text:'NAV & Unit Price',color:isDark?'#e2e8f0':'#1e293b'}},scales:{y:{title:{display:true,text:'NAV ($M)'},grid:{color:isDark?'#334155':'#e2e8f0'},ticks:{color:isDark?'#94a3b8':'#64748b'}},y1:{position:'right',title:{display:true,text:'Unit Price'},grid:{display:false},ticks:{color:isDark?'#94a3b8':'#64748b'}},x:{ticks:{color:isDark?'#94a3b8':'#64748b'},grid:{color:isDark?'#334155':'#e2e8f0'}}}}});
+
+  // Monthly Chart
+  const ml=[...p.monthly].reverse();
+  if(charts.monthly)charts.monthly.destroy();
+  charts.monthly=new Chart($('monthlyChart'),{type:'bar',data:{labels:ml.map(x=>x.m),datasets:[{label:'Fund',data:ml.map(x=>x.f),backgroundColor:ml.map(x=>x.f>=0?'rgba(13,148,136,0.7)':'rgba(220,38,38,0.7)')},{label:'Benchmark',data:ml.map(x=>x.b),backgroundColor:'rgba(99,102,241,0.5)'}]},options:{responsive:true,plugins:{title:{display:true,text:'Monthly Returns',color:isDark?'#e2e8f0':'#1e293b'}},scales:{y:{ticks:{callback:v=>v+'%',color:isDark?'#94a3b8':'#64748b'},grid:{color:isDark?'#334155':'#e2e8f0'}},x:{ticks:{color:isDark?'#94a3b8':'#64748b'},grid:{color:isDark?'#334155':'#e2e8f0'}}}}});
+
+  // Portfolio summary table
+  const rows=Object.entries(PORTFOLIOS).map(([k,v])=>`<tr style="${k===curPortfolio?'background:rgba(13,148,136,0.1)':''}"><td style="font-weight:600">${v.name}</td><td>${fmtM(v.nav)}</td><td class="${cls(v.perf.m1)}">${fmt(v.perf.m1)}</td><td class="${cls(v.perf.y1)}">${fmt(v.perf.y1)}</td><td class="${cls(v.perf.y3)}">${fmt(v.perf.y3)}</td><td class="${cls(v.perf.y1-v.bench.y1)}">${fmt(v.perf.y1-v.bench.y1)}</td></tr>`);
+  $('portfolioSummaryTable').innerHTML=`<thead><tr><th>Portfolio</th><th>NAV</th><th>1M</th><th>1Y</th><th>3Y p.a.</th><th>Active 1Y</th></tr></thead><tbody>${rows.join('')}</tbody>`;
+
+  // Risk metrics
+  const r=p.risk;
+  const rm=[{l:'Alpha',v:r.alpha+'%'},{l:'Beta',v:r.beta.toFixed(2)},{l:'Sharpe',v:r.sharpe.toFixed(2)},{l:'Info Ratio',v:r.ir.toFixed(2)},{l:'Track Error',v:r.te+'%'},{l:'Std Dev',v:r.stddev+'%'},{l:'M-Squared',v:r.m2+'%'}];
+  $('riskMetrics').innerHTML=rm.map(x=>`<div class="card kpi"><div class="val" style="font-size:1.2rem">${x.v}</div><div class="lbl">${x.l}</div></div>`).join('');
+}
+
+// ===== HOLDINGS =====
+let sortCol='a1y',sortDir=-1;
+function renderHoldings(){
+  const search=$('searchBox').value.toLowerCase();
+  const secF=$('sectorFilter').value;
+  const ragF=$('ragFilter').value;
+  let funds=getFunds().filter(h=>h.n);
+  if(search)funds=funds.filter(h=>(h.n+h.t+h.s).toLowerCase().includes(search));
+  if(secF)funds=funds.filter(h=>h.s===secF);
+  if(ragF)funds=funds.filter(h=>h.rag===ragF);
+  funds.sort((a,b)=>{let av=a[sortCol],bv=b[sortCol];if(av==null)return 1;if(bv==null)return -1;return (av-bv)*sortDir});
+
+  const sorted1y=[...getFunds().filter(h=>h.a1y!=null&&h.w>0)].sort((a,b)=>b.a1y-a.a1y);
+  const top10=new Set(sorted1y.slice(0,10).map(h=>h.t));
+  const bot10=new Set(sorted1y.slice(-10).map(h=>h.t));
+
+  const cols=[['Name','n'],['Ticker','t'],['Sector','s'],['Wt%','w'],['1M','a1m'],['3M','a3m'],['6M','a6m'],['1Y','a1y'],['3Y','a3y'],['5Y','a5y'],['Rel 1Y','r1y'],['RAG','rag']];
+  const th=cols.map(([l,k])=>`<th onclick="sortCol='${k}';sortDir=${sortCol===k?-sortDir:-1};sortCol='${k}';renderHoldings()">${l}${sortCol===k?(sortDir>0?' ▲':' ▼'):''}</th>`).join('');
+
+  const body=funds.map(h=>{
+    const bg=top10.has(h.t)?'background:rgba(22,163,74,0.08)':bot10.has(h.t)?'background:rgba(220,38,38,0.08)':'';
+    const ragBadge=h.rag?`<span class="rag-${h.rag[0].toLowerCase()}">${h.rag}</span>`:'';
+    return `<tr style="${bg}"><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${h.n}">${h.n}</td><td>${h.t}</td><td>${h.s}</td><td>${h.w?h.w.toFixed(1):'-'}</td><td class="${cls(h.a1m)}">${h.a1m!=null?h.a1m.toFixed(2):'—'}</td><td class="${cls(h.a3m)}">${h.a3m!=null?h.a3m.toFixed(2):'—'}</td><td class="${cls(h.a6m)}">${h.a6m!=null?h.a6m.toFixed(2):'—'}</td><td class="${cls(h.a1y)}">${h.a1y!=null?h.a1y.toFixed(2):'—'}</td><td class="${cls(h.a3y)}">${h.a3y!=null?h.a3y.toFixed(2):'—'}</td><td class="${cls(h.a5y)}">${h.a5y!=null?h.a5y.toFixed(2):'—'}</td><td class="${cls(h.r1y)}">${h.r1y!=null?h.r1y.toFixed(2):'—'}</td><td>${ragBadge}</td></tr>`;
+  }).join('');
+  $('holdingsTable').innerHTML=`<thead><tr>${th}</tr></thead><tbody>${body}</tbody>`;
+}
+
+function populateSectorFilter(){
+  const secs=[...new Set(H.filter(h=>h.st!=='Index').map(h=>h.s))];
+  $('sectorFilter').innerHTML='<option value="">All Sectors</option>'+secs.map(s=>`<option>${s}</option>`).join('');
+}
+
+function exportCSV(){
+  const funds=getFunds().filter(h=>h.n);
+  const hdr='Name,Ticker,Sector,Weight%,1M%,3M%,6M%,1Y%,3Y%,5Y%,Rel1Y%,RAG\n';
+  const rows=funds.map(h=>[h.n,h.t,h.s,h.w||0,h.a1m,h.a3m,h.a6m,h.a1y,h.a3y,h.a5y,h.r1y,h.rag].join(',')).join('\n');
+  const blob=new Blob([hdr+rows],{type:'text/csv'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='bwa_holdings.csv';a.click();
+}
+
+// ===== POSITIONING =====
+function renderPositioning(){
+  const p=getP();const funds=getFunds().filter(h=>h.w>0);
+  const isDark=document.documentElement.classList.contains('dark');
+  // Sector weights
+  const secW={};funds.forEach(h=>{secW[h.s]=(secW[h.s]||0)+h.w});
+  const secs=Object.entries(secW).sort((a,b)=>b[1]-a[1]);
+
+  if(charts.sector)charts.sector.destroy();
+  charts.sector=new Chart($('sectorChart'),{type:'bar',data:{labels:secs.map(s=>s[0].replace('International','Intl').replace('Australian','Aus')),datasets:[{label:'Weight %',data:secs.map(s=>s[1]),backgroundColor:'rgba(13,148,136,0.7)'}]},options:{indexAxis:'y',responsive:true,plugins:{title:{display:true,text:'Sector Allocation',color:isDark?'#e2e8f0':'#1e293b'},legend:{display:false}},scales:{x:{ticks:{callback:v=>v+'%',color:isDark?'#94a3b8':'#64748b'},grid:{color:isDark?'#334155':'#e2e8f0'}},y:{ticks:{color:isDark?'#94a3b8':'#64748b'},grid:{display:false}}}}});
+
+  // Asset class pie
+  const acMap={'Australian Equities':'Equities','International Equities':'Equities','Australian Property':'Property','International Property':'Property','Infrastructure':'Infrastructure','Australian Bonds':'Bonds','International Bonds':'Bonds','Cash':'Cash','Alternatives':'Alternatives'};
+  const acW={};funds.forEach(h=>{const ac=acMap[h.s]||h.s;acW[ac]=(acW[ac]||0)+h.w});
+  const cash=100-Object.values(acW).reduce((a,b)=>a+b,0);if(cash>0)acW['Cash']=(acW['Cash']||0)+cash;
+  const acs=Object.entries(acW).sort((a,b)=>b[1]-a[1]);
+  const colors=['#0d9488','#6366f1','#f59e0b','#ef4444','#8b5cf6','#ec4899','#64748b'];
+
+  if(charts.pie)charts.pie.destroy();
+  charts.pie=new Chart($('assetPie'),{type:'doughnut',data:{labels:acs.map(a=>a[0]),datasets:[{data:acs.map(a=>a[1]),backgroundColor:colors}]},options:{responsive:true,plugins:{title:{display:true,text:'Asset Class Breakdown',color:isDark?'#e2e8f0':'#1e293b'}}}});
+
+  // AA Table
+  const ovColor=v=>v==='Overweight'?'pos':v==='Underweight'?'neg':'';
+  $('aaTable').innerHTML=`<thead><tr><th>Asset Class</th><th>Valuation</th><th>Momentum</th><th>Macro</th><th>Overall</th></tr></thead><tbody>${AA_VIEWS.map(a=>`<tr><td style="font-weight:600">${a.ac}</td><td>${a.val}</td><td>${a.mom}</td><td>${a.mac}</td><td class="${ovColor(a.ov)}" style="font-weight:700">${a.ov}</td></tr>`).join('')}</tbody>`;
+
+  // OW/UW
+  const withRel=funds.filter(h=>h.r1y!=null).sort((a,b)=>b.r1y-a.r1y);
+  const ow=withRel.slice(0,10),uw=withRel.slice(-10).reverse();
+  $('owUwContainer').innerHTML=`<div><h4 style="font-weight:600;font-size:0.85rem;margin-bottom:0.5rem">Top 10 Relative Performers</h4><table><thead><tr><th>Name</th><th>Wt%</th><th>Rel 1Y</th></tr></thead><tbody>${ow.map(h=>`<tr><td>${h.n.substring(0,30)}</td><td>${h.w.toFixed(1)}</td><td class="pos">${h.r1y.toFixed(2)}%</td></tr>`).join('')}</tbody></table></div><div><h4 style="font-weight:600;font-size:0.85rem;margin-bottom:0.5rem">Bottom 10 Relative Performers</h4><table><thead><tr><th>Name</th><th>Wt%</th><th>Rel 1Y</th></tr></thead><tbody>${uw.map(h=>`<tr><td>${h.n.substring(0,30)}</td><td>${h.w.toFixed(1)}</td><td class="neg">${h.r1y.toFixed(2)}%</td></tr>`).join('')}</tbody></table></div>`;
+}
+
+// ===== ATTRIBUTION =====
+function renderAttribution(){
+  const p=getP();const funds=getFunds().filter(h=>h.w>0&&h.a1y!=null);
+  // Contribution = weight * return / 100
+  const contribs=funds.map(h=>({...h,contrib:h.w*h.a1y/100})).sort((a,b)=>b.contrib-a.contrib);
+
+  const mkRow=h=>`<tr><td>${h.n.substring(0,35)}</td><td>${h.w.toFixed(1)}%</td><td class="${cls(h.a1y)}">${h.a1y.toFixed(2)}%</td><td class="${cls(h.contrib)}">${h.contrib.toFixed(3)}%</td></tr>`;
+  const hdr='<thead><tr><th>Name</th><th>Weight</th><th>1Y Return</th><th>Contribution</th></tr></thead>';
+  $('topContrib').innerHTML=hdr+'<tbody>'+contribs.slice(0,10).map(mkRow).join('')+'</tbody>';
+  $('bottomContrib').innerHTML=hdr+'<tbody>'+contribs.slice(-10).reverse().map(mkRow).join('')+'</tbody>';
+
+  // Sector attribution
+  const secAttr={};
+  funds.forEach(h=>{if(!secAttr[h.s])secAttr[h.s]={w:0,contrib:0};secAttr[h.s].w+=h.w;secAttr[h.s].contrib+=h.w*h.a1y/100});
+  const sa=Object.entries(secAttr).sort((a,b)=>b[1].contrib-a[1].contrib);
+  $('sectorAttrib').innerHTML=`<thead><tr><th>Sector</th><th>Weight</th><th>Contribution</th></tr></thead><tbody>${sa.map(([s,v])=>`<tr><td>${s}</td><td>${v.w.toFixed(1)}%</td><td class="${cls(v.contrib)}">${v.contrib.toFixed(3)}%</td></tr>`).join('')}</tbody>`;
+
+  // Heatmap
+  const months=p.monthly.map(m=>m.m);
+  const vals=p.monthly.map(m=>m.f);
+  const maxAbs=Math.max(...vals.map(Math.abs),1);
+  $('heatmap').innerHTML=`<div style="display:flex;flex-wrap:wrap;gap:4px">${p.monthly.map((m,i)=>{
+    const v=m.f;const intensity=Math.min(Math.abs(v)/maxAbs,1);
+    const bg=v>=0?`rgba(22,163,74,${0.2+intensity*0.6})`:`rgba(220,38,38,${0.2+intensity*0.6})`;
+    return `<div class="heatmap-cell" style="background:${bg};color:${intensity>0.5?'#fff':'var(--text)'}" title="${m.m}: ${v}%"><div><div style="font-size:0.6rem">${m.m}</div>${v>0?'+':''}${v.toFixed(1)}%</div></div>`;
+  }).join('')}</div>`;
+}
+
+// ===== VOTING SYSTEM =====
+function getPolls(){
+  let polls=JSON.parse(localStorage.getItem('bwa-ic-polls')||'null');
+  if(!polls){polls=SEED_POLLS;localStorage.setItem('bwa-ic-polls',JSON.stringify(polls))}
+  return polls;
+}
+function savePolls(p){localStorage.setItem('bwa-ic-polls',JSON.stringify(p))}
+
+function showAdminLogin(){$('adminPanel').style.display=$('adminPanel').style.display==='none'?'block':'none'}
+function adminLogin(){
+  if($('adminPw').value==='rake2024'){adminAuth=true;$('adminLoginDiv').style.display='none';$('adminCreateDiv').style.display='block'}
+  else alert('Incorrect password');
+}
+function createPoll(){
+  const t=$('pollTitle').value.trim(),d=$('pollDesc').value.trim(),o=$('pollOptions').value.split(',').map(x=>x.trim()).filter(Boolean);
+  if(!t||o.length<2||o.length>5){alert('Need title and 2-5 options');return}
+  const polls=getPolls();
+  polls.push({id:Date.now().toString(),title:t,desc:d,options:o,created:new Date().toISOString().slice(0,10),closed:false,votes:[]});
+  savePolls(polls);$('pollTitle').value='';$('pollDesc').value='';$('pollOptions').value='';renderVoting();
+}
+function closePoll(id){const polls=getPolls();const p=polls.find(x=>x.id===id);if(p)p.closed=true;savePolls(polls);renderVoting()}
+function deletePoll(id){savePolls(getPolls().filter(x=>x.id!==id));renderVoting()}
+
+function castVote(pollId,option){
+  const member=$('voterSelect').value;
+  if(!member){alert('Select a member first');return}
+  const polls=getPolls();const poll=polls.find(x=>x.id===pollId);
+  if(!poll||poll.closed)return;
+  if(poll.votes.find(v=>v.member===member)){alert('Already voted');return}
+  poll.votes.push({member,option});savePolls(polls);renderVoting();
+}
+
+function renderVoting(){
+  const polls=getPolls();
+  const member=$('voterSelect').value;
+
+  // Active polls
+  const active=polls.filter(p=>!p.closed);
+  $('activePolls').innerHTML=active.length?active.map(p=>{
+    const hasVoted=member&&p.votes.find(v=>v.member===member);
+    const optBtns=p.options.map(o=>`<button class="btn ${hasVoted?'btn-secondary':'btn-primary'}" style="margin:2px" onclick="castVote('${p.id}','${o}')" ${hasVoted?'disabled':''}>${o}${p.votes.filter(v=>v.option===o).length?' ('+p.votes.filter(v=>v.option===o).length+')':''}</button>`).join('');
+    const adminBtns=adminAuth?`<button class="btn btn-secondary" onclick="closePoll('${p.id}')" style="margin-left:0.5rem;font-size:0.7rem">Close</button><button class="btn btn-danger" onclick="deletePoll('${p.id}')" style="margin-left:0.25rem;font-size:0.7rem">Delete</button>`:'';
+    return `<div class="card" style="margin-bottom:0.75rem"><div style="display:flex;justify-content:space-between;align-items:center"><h4 style="font-weight:600;font-size:0.9rem">${p.title}</h4>${adminBtns}</div><p style="color:var(--muted);font-size:0.8rem;margin:0.25rem 0">${p.desc||''}</p><div style="margin-top:0.5rem">${optBtns}</div>${hasVoted?'<div style="color:var(--teal);font-size:0.75rem;margin-top:0.25rem">You voted: '+hasVoted.option+'</div>':''}</div>`;
+  }).join(''):'<p style="color:var(--muted);font-size:0.85rem">No active polls</p>';
+
+  // History
+  const closed=polls.filter(p=>p.closed);
+  $('voteHistory').innerHTML=closed.length?closed.map(p=>{
+    const breakdown=p.options.map(o=>{const cnt=p.votes.filter(v=>v.option===o).length;return `<div style="display:flex;justify-content:space-between;padding:0.25rem 0"><span>${o}</span><span style="font-weight:600">${cnt} vote${cnt!==1?'s':''}</span></div>`;}).join('');
+    const voterList=p.votes.map(v=>`<span style="font-size:0.75rem;color:var(--muted)">${v.member}: ${v.option}</span>`).join(' | ');
+    return `<div class="card" style="margin-bottom:0.75rem"><h4 style="font-weight:600;font-size:0.85rem">${p.title} <span style="font-size:0.7rem;color:var(--muted)">${p.created}</span></h4>${breakdown}<div style="margin-top:0.5rem;font-size:0.75rem">${voterList}</div></div>`;
+  }).join(''):'<p style="color:var(--muted);font-size:0.85rem">No closed polls</p>';
+}
+
+// ===== WATCHLIST =====
+function getWL(){return JSON.parse(localStorage.getItem('bwa-ic-watchlist')||'[]')}
+function saveWL(w){localStorage.setItem('bwa-ic-watchlist',JSON.stringify(w))}
+function addWatchlistItem(){
+  const t=$('wlTicker').value.trim(),n=$('wlName').value.trim(),th=$('wlThesis').value.trim(),ab=$('wlAddedBy').value,st=$('wlStatus').value;
+  if(!t||!n){alert('Ticker and name required');return}
+  const wl=getWL();wl.push({id:Date.now(),ticker:t,name:n,thesis:th,addedBy:ab,date:new Date().toISOString().slice(0,10),status:st});
+  saveWL(wl);$('wlTicker').value='';$('wlName').value='';$('wlThesis').value='';renderWatchlist();
+}
+function removeWL(id){saveWL(getWL().filter(x=>x.id!==id));renderWatchlist()}
+function renderWatchlist(){
+  const wl=getWL();
+  $('watchlistTable').innerHTML=`<thead><tr><th>Ticker</th><th>Name</th><th>Thesis</th><th>Added By</th><th>Date</th><th>Status</th><th></th></tr></thead><tbody>${wl.length?wl.map(w=>`<tr><td style="font-weight:600">${w.ticker}</td><td>${w.name}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis">${w.thesis}</td><td>${w.addedBy}</td><td>${w.date}</td><td><span style="padding:2px 8px;border-radius:9999px;font-size:0.7rem;font-weight:600;background:${w.status==='Ready'?'#16a34a':w.status==='Passed'?'#dc2626':'#f59e0b'};color:#fff">${w.status}</span></td><td><button class="btn btn-danger" style="font-size:0.65rem;padding:2px 6px" onclick="removeWL(${w.id})">X</button></td></tr>`).join(''):'<tr><td colspan="7" style="text-align:center;color:var(--muted)">No items yet</td></tr>'}</tbody>`;
+}
+
+// ===== INIT =====
+function renderAll(){renderOverview();populateSectorFilter();renderHoldings();renderVoting();renderWatchlist()}
+
+function initDropdowns(){
+  $('voterSelect').innerHTML='<option value="">Select Member...</option>'+IC_MEMBERS.map(m=>`<option>${m}</option>`).join('');
+  $('wlAddedBy').innerHTML=IC_MEMBERS.map(m=>`<option>${m}</option>`).join('');
+}
+
+window.addEventListener('DOMContentLoaded',()=>{initDropdowns();renderAll()});
+</script>
+</body>
+</html>
