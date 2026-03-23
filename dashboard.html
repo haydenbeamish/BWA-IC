@@ -19,14 +19,16 @@ body{background:var(--bg);color:var(--text);transition:background .3s,color .3s;
 .dark ::-webkit-scrollbar-thumb{background:#475569}
 
 .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1.5rem;box-shadow:var(--shadow);transition:all .25s ease}
-.card:hover{box-shadow:var(--shadow-md)}
+.card:hover{box-shadow:var(--shadow-md);border-color:rgba(13,148,136,0.15)}
 .card-hdr{display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem;font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted)}
 .card-hdr .material-icons-round{font-size:1.05rem;color:var(--teal)}
 
-.kpi{text-align:center;padding:1rem 0.75rem;position:relative;overflow:hidden}
+.kpi{text-align:center;padding:1.1rem 0.75rem;position:relative;overflow:hidden}
 .kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--teal),transparent);opacity:0.4}
-.kpi .val{font-size:1.35rem;font-weight:800;letter-spacing:-0.02em}
-.kpi .lbl{font-size:0.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;font-weight:600;margin-top:0.25rem}
+.kpi .val{font-size:1.35rem;font-weight:800;letter-spacing:-0.02em;transition:color .2s}
+.kpi .lbl{font-size:0.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;font-weight:600;margin-top:0.35rem}
+.kpi.kpi-pos::before{background:linear-gradient(90deg,#059669,transparent);opacity:0.6}
+.kpi.kpi-neg::before{background:linear-gradient(90deg,#dc2626,transparent);opacity:0.6}
 
 .nav-btn{display:flex;align-items:center;gap:0.65rem;padding:0.65rem 0.875rem;border-radius:0.6rem;cursor:pointer;transition:all .2s ease;color:rgba(255,255,255,0.45);font-size:0.825rem;font-weight:500;width:100%;border:1px solid transparent;background:transparent;text-align:left;position:relative}
 .nav-btn .material-icons-round{font-size:1.1rem;transition:color .2s}
@@ -37,8 +39,11 @@ body{background:var(--bg);color:var(--text);transition:background .3s,color .3s;
 
 table{width:100%;border-collapse:separate;border-spacing:0;font-size:0.78rem}
 th{cursor:pointer;padding:0.6rem 0.75rem;text-align:left;border-bottom:2px solid var(--border);color:var(--muted);font-weight:700;white-space:nowrap;user-select:none;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.06em;transition:color .15s}
-td{padding:0.55rem 0.75rem;border-bottom:1px solid var(--border);transition:background .1s}
+td{padding:0.55rem 0.75rem;border-bottom:1px solid var(--border);transition:background .15s}
 tbody tr:hover{background:var(--card-hover)}
+tbody tr:nth-child(even){background:rgba(0,0,0,0.015)}
+.dark tbody tr:nth-child(even){background:rgba(255,255,255,0.015)}
+tbody tr:nth-child(even):hover{background:var(--card-hover)}
 th:hover{color:var(--teal)}
 .pos{color:#059669;font-weight:600}.neg{color:#dc2626;font-weight:600}
 
@@ -64,8 +69,19 @@ select:focus,input[type=text]:focus,input[type=password]:focus,textarea:focus{bo
 @media print{.no-print{display:none!important}.main{margin-left:0!important}}
 @media(max-width:768px){.sidebar{transform:translateX(-100%)!important}.main{margin-left:0!important;padding:1rem!important}}
 .heatmap-cell{min-width:4.2rem;height:3rem;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;border-radius:8px;cursor:default;transition:transform .15s}
-.heatmap-cell:hover{transform:scale(1.08)}
+.heatmap-cell:hover{transform:scale(1.08);box-shadow:0 2px 8px rgba(0,0,0,0.15)}
 .heatmap-cell .hm-month{font-size:0.52rem;font-weight:500;opacity:0.75;margin-bottom:1px}
+
+[id^="tab-"]{animation:fadeIn .3s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+.holdings-count{font-size:0.72rem;color:var(--muted);font-weight:500;display:flex;align-items:center;gap:0.25rem}
+
+.risk-card{text-align:center;padding:1.1rem 0.75rem;position:relative;overflow:hidden}
+.risk-card .val{font-size:1.2rem;font-weight:800;letter-spacing:-0.02em}
+.risk-card .lbl{font-size:0.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;font-weight:600;margin-top:0.35rem}
+.risk-card .risk-bar{height:3px;border-radius:2px;margin-top:0.5rem;background:var(--border);overflow:hidden}
+.risk-card .risk-bar-fill{height:100%;border-radius:2px;transition:width .5s ease}
 </style>
 </head>
 <body>
@@ -89,6 +105,7 @@ select:focus,input[type=text]:focus,input[type=password]:focus,textarea:focus{bo
     <div class="theme-toggle" onclick="toggleDark()"></div>
   </div>
   <div style="color:rgba(255,255,255,0.25);font-size:0.58rem;text-align:center;letter-spacing:0.04em">Data as at 28 Feb 2026</div>
+  <div style="color:rgba(255,255,255,0.15);font-size:0.5rem;text-align:center;margin-top:0.4rem;letter-spacing:0.06em">v2.1 — IC Dashboard</div>
 </div>
 </div>
 
@@ -96,22 +113,36 @@ select:focus,input[type=text]:focus,input[type=password]:focus,textarea:focus{bo
 <div class="main" style="margin-left:240px;padding:1.5rem 2rem;max-width:1440px">
 
 <!-- PORTFOLIO SELECTOR -->
-<div class="no-print" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;gap:1rem">
-<div style="display:flex;align-items:center;gap:0.5rem">
-  <span class="material-icons-round" style="color:var(--teal);font-size:1.25rem">account_balance</span>
-  <select id="portfolioSelect" onchange="onPortfolioChange()" style="font-weight:600;font-size:0.95rem;padding:0.55rem 1rem;min-width:260px">
-  <option value="blended">BWA Blended Growth</option>
-  <option value="defensive">BWA Defensive</option>
-  <option value="growth" selected>BWA Core Satellite Growth</option>
-  <option value="diversified">BWA Diversified Growth</option>
-  <option value="esg">BWA ESG Growth</option>
-  </select>
-</div>
-<div class="card" style="padding:0.6rem 1.1rem;display:flex;align-items:center;gap:0.75rem">
-  <span class="material-icons-round" style="color:var(--teal);font-size:1.1rem">account_balance_wallet</span>
+<div class="no-print" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;gap:1rem;flex-wrap:wrap">
+<div style="display:flex;align-items:center;gap:0.75rem">
+  <div style="width:38px;height:38px;background:linear-gradient(135deg,rgba(13,148,136,0.15),rgba(13,148,136,0.05));border:1px solid rgba(13,148,136,0.2);border-radius:10px;display:flex;align-items:center;justify-content:center">
+    <span class="material-icons-round" style="color:var(--teal);font-size:1.15rem">account_balance</span>
+  </div>
   <div>
-    <div style="font-size:0.58rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted)">Total AUM</div>
-    <div style="font-size:1.1rem;font-weight:800;letter-spacing:-0.02em">$1.32B</div>
+    <div style="font-size:0.58rem;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);margin-bottom:2px">Portfolio</div>
+    <select id="portfolioSelect" onchange="onPortfolioChange()" style="font-weight:600;font-size:0.95rem;padding:0.55rem 1rem;min-width:260px">
+    <option value="blended">BWA Blended Growth</option>
+    <option value="defensive">BWA Defensive</option>
+    <option value="growth" selected>BWA Core Satellite Growth</option>
+    <option value="diversified">BWA Diversified Growth</option>
+    <option value="esg">BWA ESG Growth</option>
+    </select>
+  </div>
+</div>
+<div style="display:flex;gap:0.75rem;align-items:center">
+  <div class="card" style="padding:0.6rem 1.1rem;display:flex;align-items:center;gap:0.75rem">
+    <span class="material-icons-round" style="color:var(--teal);font-size:1.1rem">account_balance_wallet</span>
+    <div>
+      <div style="font-size:0.58rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted)">Total AUM</div>
+      <div style="font-size:1.1rem;font-weight:800;letter-spacing:-0.02em">$1.32B</div>
+    </div>
+  </div>
+  <div class="card" id="inceptionBadge" style="padding:0.6rem 1.1rem;display:flex;align-items:center;gap:0.75rem">
+    <span class="material-icons-round" style="color:var(--teal);font-size:1.1rem">event</span>
+    <div>
+      <div style="font-size:0.58rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted)">Inception</div>
+      <div id="inceptionDate" style="font-size:0.9rem;font-weight:700;letter-spacing:-0.01em"></div>
+    </div>
   </div>
 </div>
 </div>
@@ -120,8 +151,8 @@ select:focus,input[type=text]:focus,input[type=password]:focus,textarea:focus{bo
 <div id="tab-overview">
 <div id="kpiCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:0.75rem;margin-bottom:1.25rem"></div>
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.25rem">
-<div class="card"><canvas id="navChart" height="220"></canvas></div>
-<div class="card"><canvas id="monthlyChart" height="220"></canvas></div>
+<div class="card" style="padding:1rem 1.25rem"><canvas id="navChart" height="220"></canvas></div>
+<div class="card" style="padding:1rem 1.25rem"><canvas id="monthlyChart" height="220"></canvas></div>
 </div>
 <div class="card" style="margin-bottom:1.25rem">
 <div class="card-hdr"><span class="material-icons-round">assessment</span>Portfolio Performance Summary</div>
@@ -145,6 +176,7 @@ select:focus,input[type=text]:focus,input[type=password]:focus,textarea:focus{bo
 <select id="sectorFilter" onchange="renderHoldings()" style="min-width:160px"><option value="">All Sectors</option></select>
 <select id="ragFilter" onchange="renderHoldings()" style="min-width:110px"><option value="">All RAG</option><option value="RED">RED</option><option value="AMBER">AMBER</option><option value="GREEN">GREEN</option></select>
 <button class="btn btn-primary" onclick="exportCSV()"><span class="material-icons-round" style="font-size:0.9rem">download</span>CSV</button>
+<div id="holdingsCount" style="margin-left:auto"></div>
 </div>
 <div style="overflow-x:auto"><table id="holdingsTable"></table></div>
 </div>
@@ -321,7 +353,8 @@ if(localStorage.getItem('dark')==='true')document.documentElement.classList.add(
 
 function showTab(t){
   document.querySelectorAll('[id^="tab-"]').forEach(el=>el.style.display='none');
-  $('tab-'+t).style.display='block';
+  const tab=$('tab-'+t);tab.style.display='block';
+  tab.style.animation='none';tab.offsetHeight;tab.style.animation='fadeIn .3s ease';
   document.querySelectorAll('.nav-btn').forEach((b,i)=>{b.classList.remove('active')});
   const tabs=['overview','holdings','positioning','attribution','voting','watchlist'];
   const idx=tabs.indexOf(t);
@@ -354,27 +387,47 @@ function renderOverview(){
     {lbl:'Since Incep.',val:fmt(p.perf.incep),c:cls(p.perf.incep)},
     {lbl:'vs Benchmark',val:fmt(p.perf.y1-p.bench.y1),c:cls(p.perf.y1-p.bench.y1)},
   ];
-  $('kpiCards').innerHTML=kpis.map(k=>`<div class="card kpi"><div class="val ${k.c||''}">${k.val}</div><div class="lbl">${k.lbl}</div></div>`).join('');
+  $('kpiCards').innerHTML=kpis.map(k=>{
+    const accent=k.c==='pos'?'kpi-pos':k.c==='neg'?'kpi-neg':'';
+    return `<div class="card kpi ${accent}"><div class="val ${k.c||''}">${k.val}</div><div class="lbl">${k.lbl}</div></div>`;
+  }).join('');
 
   // NAV Chart
   const nh=[...p.navHist].reverse();
   if(charts.nav)charts.nav.destroy();
   const isDark=document.documentElement.classList.contains('dark');
-  charts.nav=new Chart($('navChart'),{type:'line',data:{labels:nh.map(x=>x.m),datasets:[{label:'NAV ($M)',data:nh.map(x=>x.v),borderColor:'#0d9488',backgroundColor:'rgba(13,148,136,0.1)',fill:true,tension:0.3},{label:'Unit Price',data:nh.map(x=>x.p),borderColor:'#6366f1',yAxisID:'y1',tension:0.3}]},options:{responsive:true,plugins:{title:{display:true,text:'NAV & Unit Price',color:isDark?'#e2e8f0':'#1e293b'}},scales:{y:{title:{display:true,text:'NAV ($M)'},grid:{color:isDark?'#334155':'#e2e8f0'},ticks:{color:isDark?'#94a3b8':'#64748b'}},y1:{position:'right',title:{display:true,text:'Unit Price'},grid:{display:false},ticks:{color:isDark?'#94a3b8':'#64748b'}},x:{ticks:{color:isDark?'#94a3b8':'#64748b'},grid:{color:isDark?'#334155':'#e2e8f0'}}}}});
+  charts.nav=new Chart($('navChart'),{type:'line',data:{labels:nh.map(x=>x.m),datasets:[{label:'NAV ($M)',data:nh.map(x=>x.v),borderColor:'#0d9488',backgroundColor:'rgba(13,148,136,0.08)',fill:true,tension:0.35,borderWidth:2.5,pointRadius:3,pointHoverRadius:5,pointBackgroundColor:'#0d9488'},{label:'Unit Price',data:nh.map(x=>x.p),borderColor:'#6366f1',yAxisID:'y1',tension:0.35,borderWidth:2,pointRadius:3,pointHoverRadius:5,pointBackgroundColor:'#6366f1'}]},options:{responsive:true,interaction:{intersect:false,mode:'index'},plugins:{title:{display:true,text:'NAV & Unit Price',color:isDark?'#e2e8f0':'#1e293b',font:{size:13,weight:'600'}},tooltip:{backgroundColor:isDark?'#1e293b':'#fff',titleColor:isDark?'#e2e8f0':'#1e293b',bodyColor:isDark?'#94a3b8':'#64748b',borderColor:isDark?'#334155':'#e2e8f0',borderWidth:1,cornerRadius:8,padding:10}},scales:{y:{title:{display:true,text:'NAV ($M)'},grid:{color:isDark?'#334155':'#e2e8f0'},ticks:{color:isDark?'#94a3b8':'#64748b'}},y1:{position:'right',title:{display:true,text:'Unit Price'},grid:{display:false},ticks:{color:isDark?'#94a3b8':'#64748b'}},x:{ticks:{color:isDark?'#94a3b8':'#64748b'},grid:{color:isDark?'#334155':'#e2e8f0'}}}}});
 
   // Monthly Chart
   const ml=[...p.monthly].reverse();
   if(charts.monthly)charts.monthly.destroy();
-  charts.monthly=new Chart($('monthlyChart'),{type:'bar',data:{labels:ml.map(x=>x.m),datasets:[{label:'Fund',data:ml.map(x=>x.f),backgroundColor:ml.map(x=>x.f>=0?'rgba(13,148,136,0.7)':'rgba(220,38,38,0.7)')},{label:'Benchmark',data:ml.map(x=>x.b),backgroundColor:'rgba(99,102,241,0.5)'}]},options:{responsive:true,plugins:{title:{display:true,text:'Monthly Returns',color:isDark?'#e2e8f0':'#1e293b'}},scales:{y:{ticks:{callback:v=>v+'%',color:isDark?'#94a3b8':'#64748b'},grid:{color:isDark?'#334155':'#e2e8f0'}},x:{ticks:{color:isDark?'#94a3b8':'#64748b'},grid:{color:isDark?'#334155':'#e2e8f0'}}}}});
+  charts.monthly=new Chart($('monthlyChart'),{type:'bar',data:{labels:ml.map(x=>x.m),datasets:[{label:'Fund',data:ml.map(x=>x.f),backgroundColor:ml.map(x=>x.f>=0?'rgba(13,148,136,0.7)':'rgba(220,38,38,0.7)'),borderRadius:3},{label:'Benchmark',data:ml.map(x=>x.b),backgroundColor:'rgba(99,102,241,0.45)',borderRadius:3}]},options:{responsive:true,interaction:{intersect:false,mode:'index'},plugins:{title:{display:true,text:'Monthly Returns',color:isDark?'#e2e8f0':'#1e293b',font:{size:13,weight:'600'}},tooltip:{backgroundColor:isDark?'#1e293b':'#fff',titleColor:isDark?'#e2e8f0':'#1e293b',bodyColor:isDark?'#94a3b8':'#64748b',borderColor:isDark?'#334155':'#e2e8f0',borderWidth:1,cornerRadius:8,padding:10,callbacks:{label:ctx=>ctx.dataset.label+': '+ctx.parsed.y.toFixed(2)+'%'}}},scales:{y:{ticks:{callback:v=>v+'%',color:isDark?'#94a3b8':'#64748b'},grid:{color:isDark?'#334155':'#e2e8f0'}},x:{ticks:{color:isDark?'#94a3b8':'#64748b'},grid:{color:isDark?'#334155':'#e2e8f0'}}}}});
 
   // Portfolio summary table
-  const rows=Object.entries(PORTFOLIOS).map(([k,v])=>`<tr style="${k===curPortfolio?'background:rgba(13,148,136,0.1)':''}"><td style="font-weight:600">${v.name}</td><td>${fmtM(v.nav)}</td><td class="${cls(v.perf.m1)}">${fmt(v.perf.m1)}</td><td class="${cls(v.perf.y1)}">${fmt(v.perf.y1)}</td><td class="${cls(v.perf.y3)}">${fmt(v.perf.y3)}</td><td class="${cls(v.perf.y1-v.bench.y1)}">${fmt(v.perf.y1-v.bench.y1)}</td></tr>`);
+  const rows=Object.entries(PORTFOLIOS).map(([k,v])=>{
+    const isCur=k===curPortfolio;
+    const rowStyle=isCur?'background:rgba(13,148,136,0.08);border-left:3px solid #0d9488':'border-left:3px solid transparent';
+    return `<tr style="${rowStyle}"><td style="font-weight:${isCur?'700':'600'}">${v.name}${isCur?' <span style="font-size:0.6rem;color:var(--teal);vertical-align:middle">●</span>':''}</td><td>${fmtM(v.nav)}</td><td class="${cls(v.perf.m1)}">${fmt(v.perf.m1)}</td><td class="${cls(v.perf.y1)}">${fmt(v.perf.y1)}</td><td class="${cls(v.perf.y3)}">${fmt(v.perf.y3)}</td><td class="${cls(v.perf.y1-v.bench.y1)}">${fmt(v.perf.y1-v.bench.y1)}</td></tr>`;
+  });
   $('portfolioSummaryTable').innerHTML=`<thead><tr><th>Portfolio</th><th>NAV</th><th>1M</th><th>1Y</th><th>3Y p.a.</th><th>Active 1Y</th></tr></thead><tbody>${rows.join('')}</tbody>`;
 
   // Risk metrics
   const r=p.risk;
-  const rm=[{l:'Alpha',v:r.alpha+'%'},{l:'Beta',v:r.beta.toFixed(2)},{l:'Sharpe',v:r.sharpe.toFixed(2)},{l:'Info Ratio',v:r.ir.toFixed(2)},{l:'Track Error',v:r.te+'%'},{l:'Std Dev',v:r.stddev+'%'},{l:'M-Squared',v:r.m2+'%'}];
-  $('riskMetrics').innerHTML=rm.map(x=>`<div class="card kpi"><div class="val" style="font-size:1.2rem">${x.v}</div><div class="lbl">${x.l}</div></div>`).join('');
+  const rm=[
+    {l:'Alpha',v:r.alpha+'%',raw:r.alpha,good:v=>v>0},
+    {l:'Beta',v:r.beta.toFixed(2),raw:r.beta,good:v=>v>=0.8&&v<=1.2},
+    {l:'Sharpe',v:r.sharpe.toFixed(2),raw:r.sharpe,good:v=>v>1},
+    {l:'Info Ratio',v:r.ir.toFixed(2),raw:r.ir,good:v=>v>0.5},
+    {l:'Track Error',v:r.te+'%',raw:r.te,good:v=>v<5},
+    {l:'Std Dev',v:r.stddev+'%',raw:r.stddev,good:v=>v<5},
+    {l:'M-Squared',v:r.m2+'%',raw:r.m2,good:v=>v>0}
+  ];
+  $('riskMetrics').innerHTML=rm.map(x=>{
+    const isGood=x.good(x.raw);
+    const barColor=isGood?'#059669':'#f59e0b';
+    const barW=Math.min(Math.abs(x.raw)/10*100,100);
+    return `<div class="card risk-card"><div class="val" style="font-size:1.2rem;color:${isGood?'#059669':'var(--text)'}">${x.v}</div><div class="lbl">${x.l}</div><div class="risk-bar"><div class="risk-bar-fill" style="width:${barW}%;background:${barColor}"></div></div></div>`;
+  }).join('');
 }
 
 // ===== HOLDINGS =====
@@ -401,6 +454,10 @@ function renderHoldings(){
     const ragBadge=h.rag?`<span class="rag-${h.rag[0].toLowerCase()}">${h.rag}</span>`:'';
     return `<tr style="${bg}"><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${h.n}">${h.n}</td><td>${h.t}</td><td>${h.s}</td><td>${h.w?h.w.toFixed(1):'-'}</td><td class="${cls(h.a1m)}">${h.a1m!=null?h.a1m.toFixed(2):'—'}</td><td class="${cls(h.a3m)}">${h.a3m!=null?h.a3m.toFixed(2):'—'}</td><td class="${cls(h.a6m)}">${h.a6m!=null?h.a6m.toFixed(2):'—'}</td><td class="${cls(h.a1y)}">${h.a1y!=null?h.a1y.toFixed(2):'—'}</td><td class="${cls(h.a3y)}">${h.a3y!=null?h.a3y.toFixed(2):'—'}</td><td class="${cls(h.a5y)}">${h.a5y!=null?h.a5y.toFixed(2):'—'}</td><td class="${cls(h.r1y)}">${h.r1y!=null?h.r1y.toFixed(2):'—'}</td><td>${ragBadge}</td></tr>`;
   }).join('');
+  const totalFunds=getFunds().filter(h=>h.n).length;
+  const countHtml=`<div class="holdings-count"><span class="material-icons-round" style="font-size:0.85rem">filter_list</span>${funds.length} of ${totalFunds} holdings</div>`;
+  const countEl=$('holdingsCount');
+  if(countEl)countEl.innerHTML=countHtml;
   $('holdingsTable').innerHTML=`<thead><tr>${th}</tr></thead><tbody>${body}</tbody>`;
 }
 
@@ -472,11 +529,11 @@ function renderAttribution(){
   const months=p.monthly.map(m=>m.m);
   const vals=p.monthly.map(m=>m.f);
   const maxAbs=Math.max(...vals.map(Math.abs),1);
-  $('heatmap').innerHTML=`<div style="display:flex;flex-wrap:wrap;gap:6px">${p.monthly.map((m,i)=>{
+  $('heatmap').innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(4.5rem,1fr));gap:6px">${p.monthly.map((m,i)=>{
     const v=m.f;const intensity=Math.min(Math.abs(v)/maxAbs,1);
     const bg=v>=0?`rgba(5,150,105,${0.15+intensity*0.6})`:`rgba(220,38,38,${0.15+intensity*0.6})`;
-    return `<div class="heatmap-cell" style="background:${bg};color:${intensity>0.4?'#fff':'var(--text)'}" title="${m.m}: ${v}%"><span class="hm-month">${m.m}</span>${v>0?'+':''}${v.toFixed(1)}%</div>`;
-  }).join('')}</div>`;
+    return `<div class="heatmap-cell" style="background:${bg};color:${intensity>0.4?'#fff':'var(--text)'}" title="${m.m}: Fund ${v}%, Bench ${m.b}%"><span class="hm-month">${m.m}</span>${v>0?'+':''}${v.toFixed(1)}%</div>`;
+  }).join('')}</div><div style="display:flex;gap:1rem;justify-content:center;margin-top:0.75rem;font-size:0.65rem;color:var(--muted)"><span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:12px;border-radius:3px;background:rgba(5,150,105,0.5)"></span>Positive</span><span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:12px;border-radius:3px;background:rgba(220,38,38,0.5)"></span>Negative</span></div>`;
 }
 
 // ===== VOTING SYSTEM =====
@@ -557,7 +614,11 @@ function renderWatchlist(){
 }
 
 // ===== INIT =====
-function renderAll(){renderOverview();populateSectorFilter();renderHoldings();renderVoting();renderWatchlist()}
+function renderAll(){
+  const p=getP();
+  $('inceptionDate').textContent=p.inception;
+  renderOverview();populateSectorFilter();renderHoldings();renderVoting();renderWatchlist();
+}
 
 function initDropdowns(){
   $('voterSelect').innerHTML='<option value="">Select Member...</option>'+IC_MEMBERS.map(m=>`<option>${m}</option>`).join('');
